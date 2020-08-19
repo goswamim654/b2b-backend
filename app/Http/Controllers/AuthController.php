@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use  App\User;
+use Validator;
 
 class AuthController extends Controller
 {
@@ -15,17 +16,27 @@ class AuthController extends Controller
      * @return Response
      */
     public function register(Request $request)
-    {
-        //validate incoming request 
-        $this->validate($request, [
+    {        
+        $validator = Validator::make($request->all(), [
             'mobile_number' => 'required|numeric|unique:users',
             'password' => 'required',
+            'user_type' => 'required',
         ]);
 
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 3, 
+                'data' =>  $validator->errors(),
+                'message' => 'Validation failed' 
+            ]);
+        }
+
+    
         try {
 
             $user = new User;
             $user->mobile_number = $request->input('mobile_number');
+            $user->user_type = $request->input('user_type');
             $plainPassword = $request->input('password');
             $user->password = app('hash')->make($plainPassword);
 
@@ -48,7 +59,7 @@ class AuthController extends Controller
             //return successful response
             return response()->json([
                 'token' => $token,
-                'status' => 'success',
+                'status' => 2,
                 'data' => $user, 
                 'message' => 'User registered successfully' 
             ]);
@@ -63,12 +74,21 @@ class AuthController extends Controller
     public function verifyOTP(Request $request) 
     {
         //validate incoming request 
-        $this->validate($request, [
+        $validator = Validator::make($request->all(), [
             'mobile_number' => 'required|numeric',
             'password' => 'required',
             'otp' => 'required|numeric',
         ]);
 
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 3, 
+                'data' =>  $validator->errors(),
+                'message' => 'Validation failed' 
+            ]);
+        }
+
+        
         $user = User::where('mobile_number', $request->input('mobile_number'))->first();
         
         if($user->otp == $request->input('otp'))
@@ -76,15 +96,16 @@ class AuthController extends Controller
             $otp_verify = "OTP verified";
             $user->is_otp_verified = 1;
             $user->save();
-            $status = "success";
+            $status = 2;
             $credentials = $request->only(['mobile_number', 'password']);
             $token = Auth::attempt($credentials);
         }
         else
         {
-            $otp_verify = "OTP verify fail";
-            $status = "fail";
+            $otp_verify = "OTP incorrect !";
+            $status = 4;
             $token = '';
+            $user = '';
         }
 
         //return successful response
@@ -149,7 +170,28 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
+        $validator = Validator::make($request->all(), [
+            'mobile_number' => 'required|numeric',
+            'password' => 'required'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 3, 
+                'data' =>  $validator->errors(),
+                'message' => 'Validation failed' 
+            ]);
+        }
+
         $user = User::where('mobile_number', $request->input('mobile_number'))->first();
+
+        if(! $user )
+        {
+            return response()->json([
+                'status' => 4, 
+                'message' => 'Mobile number does not exist !' 
+            ]);
+        }
 
         if($user->is_otp_verified == 0)
         {
@@ -162,7 +204,10 @@ class AuthController extends Controller
         $credentials = $request->only(['mobile_number', 'password']);
 
         if (! $token = Auth::attempt($credentials)) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+            return response()->json([
+                'status' => 4, 
+                'message' => 'Incorrect password !' 
+            ]);
         }
 
         //return $this->respondWithToken($token);
@@ -171,7 +216,7 @@ class AuthController extends Controller
         //return successful response
         return response()->json([
             'token' => $token,
-            'status' => 'success',
+            'status' => 2,
             'data' => $user, 
             'message' => 'User login successfully' 
         ]);

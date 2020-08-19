@@ -19,6 +19,7 @@ class CreateUsersTable extends Migration
             $table->integer('otp')->notNullable();
             $table->integer('is_otp_verified')->default(0)->comment('0-not verified, 1-verified');
             $table->integer('status')->default(0)->comment('0-inactive , 1-active');
+            $table->char('user_type')->comment('b-buyer , s-seller, g-guest, a-admin');
             $table->string('password')->notNullable();
             $table->string('business_name')->nullable();
             $table->string('business_category')->nullable();
