@@ -36,6 +36,7 @@ class AuthController extends Controller
 
             $user = new User;
             $user->mobile_number = $request->input('mobile_number');
+            $user->user_code = $this->genUserCode();
             $user->user_type = $request->input('user_type');
             $plainPassword = $request->input('password');
             $user->password = app('hash')->make($plainPassword);
@@ -50,7 +51,6 @@ class AuthController extends Controller
 
 
             $user->otp = $otp;
-            
             $user->save();
 
             $credentials = $request->only(['mobile_number', 'password']);
@@ -257,7 +257,15 @@ class AuthController extends Controller
             return 'fail';
         }
     }
+    public function genUserCode(){
+        $this->user_code = [
+            'user_code' => 'ALG'.mt_rand(0,999)
+        ];
 
+        $rules = ['user_code' => 'unique:users'];
 
+        $validate = Validator::make($this->user_code, $rules)->passes();
 
+        return $validate ? $this->user_code['user_code'] : $this->genUserCode();
+    }
 }

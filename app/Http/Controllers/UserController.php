@@ -87,7 +87,8 @@ class UserController extends Controller
             $user->logo_name = $logo;
             $user->logo_url = url('/uploads/'.$logo);
         }
-
+        
+        $user->status = 1;
         $user->save();
 
         $status = 'success';
@@ -125,6 +126,18 @@ class UserController extends Controller
             return response()->json(['message' => 'user not found!'], 404);
         }
 
+    }
+
+    public function getCities($state)
+    {
+        $cities = include(resource_path('appData/cities.php'));
+        $status = 2;
+        $info = "Retrived cities succesfully";
+        return ResponseBuilder::result($status, $info, $cities["$state"]);
+    }
+    public function getStates($cid)
+    {
+        
     }
 
 }

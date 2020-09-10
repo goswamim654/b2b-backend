@@ -4,8 +4,59 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "fb22f2d1762d3198220d7a2ea67e2222",
+    "content-hash": "99c1ccf18a67757ad07176ac5eb93cc7",
     "packages": [
+        {
+            "name": "brianfp/lumen-world",
+            "version": "v1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/brianfp/laravel-world.git",
+                "reference": "ba9873abe4beb353723069b29343379ed47379a2"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/brianfp/laravel-world/zipball/ba9873abe4beb353723069b29343379ed47379a2",
+                "reference": "ba9873abe4beb353723069b29343379ed47379a2",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.2.5"
+            },
+            "require-dev": {
+                "mockery/mockery": "^1.3.1",
+                "phpunit/phpunit": "^8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Khsing\\World\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Guixing Bai",
+                    "email": "khsing.cn@gmail.com"
+                },
+                {
+                    "name": "Brian Florian",
+                    "email": "brianflorianp@gmail.com"
+                }
+            ],
+            "description": "Provide countries, states, and cities models database.",
+            "keywords": [
+                "city",
+                "country",
+                "lumen",
+                "region",
+                "world"
+            ],
+            "time": "2020-07-09T18:54:31+00:00"
+        },
         {
             "name": "brick/math",
             "version": "0.8.15",

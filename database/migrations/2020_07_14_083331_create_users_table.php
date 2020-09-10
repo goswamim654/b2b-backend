@@ -15,6 +15,7 @@ class CreateUsersTable extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+            $table->string('user_code');
             $table->bigInteger('mobile_number')->unique()->notNullable();
             $table->integer('otp')->notNullable();
             $table->integer('is_otp_verified')->default(0)->comment('0-not verified, 1-verified');

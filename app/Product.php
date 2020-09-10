@@ -12,6 +12,17 @@ class Product extends Model
      * @var array
      */
     protected $fillable = [
-        'product_name', 'product_description',
+        'category', 'sub_category', 'name', 'description', 'code', 'tax'
     ];
+
+    public function photos()
+    {
+        return $this->hasMany('App\ProductPhoto');
+    }
+
+    public function units()
+    {
+        return $this->hasMany('App\ProductUnit');
+    }
 }
+

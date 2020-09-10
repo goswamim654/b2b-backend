@@ -35,6 +35,10 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     // Matches "/api/profileUpdate
     $router->post('profileUpdate', 'UserController@profileUpdate');
 
+     // Matches "/api/Cities
+     $router->get('getCities/[{state}]', 'UserController@getCities');
+
+
     // Matches "/api/users/1 
     //get one user by id
     $router->get('users/{id}', 'UserController@singleUser');
@@ -42,10 +46,20 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     // Matches "/api/users
     $router->get('users', 'UserController@allUsers');
 
+    // Matches "/api/preferences
+    $router->post('updatePreferences', 'PreferenceContoller@updatePreferences');
+
+    // Matches "/api/preferences
+    $router->get('getPreferences', 'PreferenceContoller@getPreferences');
+
+    // Matches "/api/preferences
+    $router->get('getProductCategories', 'PreferenceContoller@getProductCategories');
+
+
     //product routes
     $router->get('products', 'ProductsController@index');
-    $router->get('products/{id}', 'ProductsController@show');
-    $router->put('products/{id}', 'ProductsController@update');
+    $router->get('products/[{id}]', 'ProductsController@show');
+    $router->put('products/[{id}]', 'ProductsController@update');
     $router->post('products', 'ProductsController@store');
     $router->delete('products/{id}', 'ProductsController@destroy');
 
