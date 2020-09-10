@@ -17,7 +17,6 @@ class CreateProductsTable extends Migration
             $table->id();
             $table->string('category')->nullable();
             $table->string('sub_category')->nullable();
-            $table->string('code')->nullable();
             $table->string('name');
             $table->text('description')->nullable();
             $table->string('tax')->nullable();

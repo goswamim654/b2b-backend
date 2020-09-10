@@ -17,6 +17,7 @@ class CreateProductUnitsTable extends Migration
             $table->id();
             $table->foreignId('product_id');
             $table->string('units');
+            $table->string('code')->nullable();
             $table->string('mrp')->nullable();
             $table->string('rate')->nullable();
             $table->string('moq')->nullable();

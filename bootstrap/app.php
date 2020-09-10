@@ -100,6 +100,8 @@ $app->register(Tymon\JWTAuth\Providers\LumenServiceProvider::class);
 // $app->register(App\Providers\EventServiceProvider::class);
 $app->register(Flipbox\LumenGenerator\LumenGeneratorServiceProvider::class);
 
+class_alias('Intervention\Image\Facades\Image', 'Image');
+$app->register(Intervention\Image\ImageServiceProvider::class);
 
 
 /*

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\ProductUnit;
 use App\Product;
+use Image;
 use App\ProductPhoto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -70,7 +71,6 @@ class ProductsController extends Controller
             $this->validate($request, [
                 'category' => 'max:255',
                 'sub_category' => 'max:255',
-                'code' => 'max:255',
                 'name' => 'required|max:255',
                 'description' => 'max:600',
                 'tax' => 'max:255',
@@ -79,7 +79,6 @@ class ProductsController extends Controller
             $product = new Product();
             $product->category = $request->category;
             $product->sub_category = $request->sub_category;
-            $product->code = $request->code;
             $product->name = $request->name;
             $product->description = $request->description;
             $product->tax = $request->tax;
@@ -92,8 +91,10 @@ class ProductsController extends Controller
 
                 if($image)
                 {
-
+                   
                     $destinationPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR;
+
+
                     $image_parts = explode(";base64,", $image);
                     $image_type_aux = explode("image/", $image_parts[0]);
                     $image_type = $image_type_aux[1];
@@ -101,9 +102,11 @@ class ProductsController extends Controller
                     $photo_name = uniqid() .'.'. $image_type;
                     $file = $destinationPath . $photo_name;
                     file_put_contents($file, $image_base64);
-                    
+
+                    $this->resizeImageSave($image_base64, $photo_name);
                     $product_photo->photo_name = $photo_name;
                     $product_photo->photo_url = url('/uploads/products/'.$photo_name);
+                    
 
 
                 } 
@@ -117,6 +120,7 @@ class ProductsController extends Controller
                 $productUnits = new ProductUnit();
                 $productUnits->product_id = $product->id;
                 $productUnits->units = $product_unit['unit'];
+                $productUnits->code = $product_unit['code'];
                 $productUnits->mrp = $product_unit['mrp'];
                 $productUnits->rate = $product_unit['rate'];
                 $productUnits->moq = $product_unit['moq'];
@@ -148,7 +152,6 @@ class ProductsController extends Controller
             $this->validate($request, [
                 'category' => 'max:255',
                 'sub_category' => 'max:255',
-                'code' => 'max:255',
                 'name' => 'required|max:255',
                 'description' => 'max:600',
                 'tax' => 'max:255',
@@ -157,7 +160,6 @@ class ProductsController extends Controller
             $product = Product::find($id);
             $product->category = $request->category;
             $product->sub_category = $request->sub_category;
-            //$product->code = $request->code;
             $product->name = $request->name;
             $product->description = $request->description;
             $product->tax = $request->tax;
@@ -165,19 +167,22 @@ class ProductsController extends Controller
             
             $destinationPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR;
 
+            $destinationPhotosPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR. "photos". DIRECTORY_SEPARATOR;
+
+            $destinationThumbnailPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR. "thumbnail". DIRECTORY_SEPARATOR;
+
             // delete existing photos
-            $product_photos = ProductPhoto::where('product_id', $id)->get();
-            if($product_photos)
-            {
-                foreach ($product_photos as $key => $product_photo) 
-                {
-                    if(file_exists($destinationPath.$product_photo->photo_name))
-                    {
-                        unlink($destinationPath.$product_photo->photo_name); 
-                    }
-                    ProductPhoto::findOrFail($product_photo->id)->delete();
-                }
-            }
+            // $product_photos = ProductPhoto::where('product_id', $id)->get();
+            // if($product_photos)
+            // {
+            //     foreach ($product_photos as $key => $product_photo) 
+            //     {
+            //         unlink($destinationPath.$product_photo->photo_name); 
+            //         unlink($destinationPhotosPath.$product_photo->photo_name); 
+            //         unlink($destinationThumbnailPath.$product_photo->photo_name); 
+            //         ProductPhoto::findOrFail($product_photo->id)->delete();
+            //     }
+            // }
 
 
             //save images
@@ -195,6 +200,7 @@ class ProductsController extends Controller
                     $file = $destinationPath . $photo_name;
                     file_put_contents($file, $image_base64);
                     
+                    $this->resizeImageSave($image_base64, $photo_name);
                     $product_photo->photo_name = $photo_name;
                     $product_photo->photo_url = url('/uploads/products/'.$photo_name);
                     
@@ -218,6 +224,7 @@ class ProductsController extends Controller
                 $productUnits = new ProductUnit();
                 $productUnits->product_id = $id;
                 $productUnits->units = $product_unit['unit'];
+                $productUnits->code = $product_unit['code'];
                 $productUnits->mrp = $product_unit['mrp'];
                 $productUnits->rate = $product_unit['rate'];
                 $productUnits->moq = $product_unit['moq'];
@@ -257,5 +264,25 @@ class ProductsController extends Controller
     public function customResponse($message = 'success', $status = 200)
     {
         return response(['status' =>  $status, 'message' => $message], $status);
+    }
+
+    public function resizeImageSave($image_base64, $photo_name)
+    {
+        $destinationPhotosPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR. "photos". DIRECTORY_SEPARATOR;
+
+        $destinationThumbnailPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR. "thumbnail". DIRECTORY_SEPARATOR;
+        
+        $img = Image::make($image_base64)->resize(500,null,function($constraint)
+        {
+            $constraint->aspectRatio();
+        });
+        $img->save($destinationPhotosPath . $photo_name);
+
+        $imgThumbnail = Image::make($image_base64)->resize(100,null,function($constraint)
+        {
+            $constraint->aspectRatio();
+        });
+        $imgThumbnail->save($destinationThumbnailPath . $photo_name);
+
     }
 }
