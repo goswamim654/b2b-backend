@@ -285,4 +285,24 @@ class ProductsController extends Controller
         $imgThumbnail->save($destinationThumbnailPath . $photo_name);
 
     }
+    public function getImages() 
+    {
+        $productPhotos = ProductPhoto::all();
+        $images = [];
+        $images_thumbnails = [];
+        $images_originals = [];
+        $images_photos = [];
+        foreach ($productPhotos as $key => $photo) {
+            $images_originals[] = $photo->photo_url;
+            $images_thumbnails[] = url('/uploads/products/thumbnail/'.$photo->photo_name);
+            $images_photos[] = url('/uploads/products/photos/'.$photo->photo_name);
+        }
+        $images['originals'] = $images_originals;
+        $images['thumbnails'] = $images_thumbnails;
+        $images['photos'] = $images_photos;
+
+        $status = 2;
+        $message = "Product photo retrived succesfully";
+        return ResponseBuilder::result($status, $message, $images);
+    }
 }

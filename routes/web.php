@@ -63,4 +63,6 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     $router->post('products', 'ProductsController@store');
     $router->post('deleteProductImage', 'ProductsController@deleteProductImage');
 
+    $router->get('getImages', 'ProductsController@getImages');
+
 });
