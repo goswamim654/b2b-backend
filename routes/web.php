@@ -65,4 +65,14 @@ $router->group(['prefix' => 'api'], function () use ($router) {
 
     $router->get('getImages', 'ProductsController@getImages');
 
+
+    // Matches "/api/availability product availibilty
+    $router->post('updateProductAvalibility', 'ProductsController@updateProductAvalibility');
+
+    // Matches "/api/updateProductStatus product status
+    $router->post('updateProductStatus', 'ProductsController@updateProductStatus');
+
+    // preview product
+    $router->post('previewProducts', 'ProductsController@previewProducts');
+    $router->get('previewProductsDetails/[{id}]', 'ProductsController@previewProductsDetails');
 });

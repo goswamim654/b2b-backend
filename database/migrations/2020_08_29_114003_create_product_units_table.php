@@ -22,6 +22,7 @@ class CreateProductUnitsTable extends Migration
             $table->string('rate')->nullable();
             $table->string('moq')->nullable();
             $table->string('available');
+            $table->string('status')->nullable();
             $table->string('stock')->nullable();
             $table->timestamps();
         });

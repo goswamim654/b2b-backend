@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use Image;
 use App\ProductUnit;
 use App\Product;
-use Image;
 use App\ProductPhoto;
+use App\PreviewProductUnit;
+use App\PreviewProduct;
+use App\PreviewProductPhoto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Helper\ResponseBuilder;
@@ -31,10 +34,31 @@ class ProductsController extends Controller
      */
     public function index()
     {
-        $product = Product::with('photos')->with('units')->get();
+        $products = Product::with('photos')->with('units')->get();
 
-        if(count($product) > 0)
+        if(count($products) > 0)
         {
+            $productList = [];
+            $product_details = [];
+            foreach ($products as $key => $product) 
+            {
+                $product_details['id'] = $product->id;
+                $product_details['name'] = $product->name;
+                foreach ($product->units as $key => $unit) {
+                    $product_details['unit_id'] = $unit->id;
+                    $product_details['code'] = $unit->code;
+                    $product_details['rate'] = $unit->rate;
+                    $product_details['available'] = $unit->available;
+                    $product_details['status'] = $unit->status;
+                }
+                foreach ($product->photos as $key => $photo) {
+                    $product_details['banner_image'] = $photo->photo_url;
+                    break;
+                }
+                
+                $product_details['photos'] = $product->photos;
+                $productList[] = $product_details;
+            }
             $status = 2;
             $message = "Products retrived succesfully";
         }
@@ -43,7 +67,7 @@ class ProductsController extends Controller
             $status = 3;
             $message = "Products not available";
         }
-        return ResponseBuilder::result($status, $message, $product);
+        return ResponseBuilder::result($status, $message, $productList);
     }
 
     public function show($id)
@@ -304,5 +328,122 @@ class ProductsController extends Controller
         $status = 2;
         $message = "Product photo retrived succesfully";
         return ResponseBuilder::result($status, $message, $images);
+    }
+    public function updateProductAvalibility(Request $request)
+    {
+        $unit = ProductUnit::find($request->unit_id);
+        $unit->available  = $request->availability;
+        $unit->save();
+        $status = 2;
+        $message = "Product availability updated succesfully";
+        return ResponseBuilder::result($status, $message, $unit);
+
+    }
+    public function updateProductStatus(Request $request)
+    {
+        $unit = ProductUnit::find($request->unit_id);
+        $unit->status  = $request->status;
+        $unit->save();
+        $status = 2;
+        $message = "Product status updated succesfully";
+        return ResponseBuilder::result($status, $message, $unit);
+
+    }
+
+    // preview product
+    public function previewProducts(Request $request)
+    {
+        try {
+            \DB::beginTransaction();
+            //validate request parameters
+            $this->validate($request, [
+                'category' => 'max:255',
+                'sub_category' => 'max:255',
+                'name' => 'required|max:255',
+                'description' => 'max:600',
+                'tax' => 'max:255',
+            ]);
+
+            $product = new PreviewProduct();
+            $product->category = $request->category;
+            $product->sub_category = $request->sub_category;
+            $product->name = $request->name;
+            $product->description = $request->description;
+            $product->tax = $request->tax;
+            $product->save();
+            
+            // save images
+            foreach ($request->product_images as $key => $image) {
+                $product_photo = new PreviewProductPhoto();
+                $product_photo->product_id = $product->id;
+
+                if($image)
+                {
+                   
+                    $destinationPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR;
+
+
+                    $image_parts = explode(";base64,", $image);
+                    $image_type_aux = explode("image/", $image_parts[0]);
+                    $image_type = $image_type_aux[1];
+                    $image_base64 = base64_decode($image_parts[1]);
+                    $photo_name = uniqid() .'.'. $image_type;
+                    $file = $destinationPath . $photo_name;
+                    file_put_contents($file, $image_base64);
+
+                    $this->resizeImageSave($image_base64, $photo_name);
+                    $product_photo->photo_name = $photo_name;
+                    $product_photo->photo_url = url('/uploads/products/'.$photo_name);
+                    
+
+
+                } 
+                $product_photo->save();
+            }
+
+
+            // // save units
+            foreach ($request->product as $key => $product_unit) 
+            {
+                $productUnits = new PreviewProductUnit();
+                $productUnits->product_id = $product->id;
+                $productUnits->units = $product_unit['unit'];
+                $productUnits->code = $product_unit['code'];
+                $productUnits->mrp = $product_unit['mrp'];
+                $productUnits->rate = $product_unit['rate'];
+                $productUnits->moq = $product_unit['moq'];
+                $productUnits->available = $product_unit['available'];
+                $productUnits->stock = $product_unit['stock'];
+                $productUnits->save();
+
+            }
+            \DB::commit();
+            
+        } catch (\Exception $e) {
+            \DB::rollback();
+            return response()->json(['message' => 'Something went wrong!'], 404);
+        }
+        
+        $status = 2;
+        $message = "Product saved succesfully";
+        return ResponseBuilder::result($status, $message, $product);
+        
+    }
+
+    public function previewProductsDetails($id)
+    {
+        $product = PreviewProduct::where('id', '=', $id)->with('photos')->with('units')->get();
+
+        if(count($product) > 0)
+        {
+            $status = 2;
+            $message = "Product retrived succesfully";
+        }
+        else
+        {
+            $status = 3;
+            $message = "Product not available";
+        }
+        return ResponseBuilder::result($status, $message, $product);
     }
 }
