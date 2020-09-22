@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use  App\User;
 use Validator;
+use App\Http\Helper\ResponseBuilder;
 
 class AuthController extends Controller
 {
@@ -66,7 +67,12 @@ class AuthController extends Controller
 
         } catch (\Exception $e) {
             //return error message
-            return response()->json(['message' => 'User Registration Failed!'], 409);
+            return response()->json([
+                'token' => '',
+                'status' => 6,
+                'data' => '', 
+                'message' => 'Something went wrong !' 
+            ]);
         }
 
     }
@@ -120,40 +126,50 @@ class AuthController extends Controller
 
     public function resendOTP(Request $request) 
     {
+        
         //validate incoming request 
-        $this->validate($request, [
-            'mobile_number' => 'required|numeric'
+        $validator = Validator::make($request->all(), [
+            'mobile_number' => 'required|numeric',
         ]);
+
+        if ($validator->fails()) 
+        {
+            $status = 3;
+            $info =  'Validation failed';
+            $data = $validator->errors();
+            return ResponseBuilder::result($status, $info, $data);
+        }
 
         $user = User::where('mobile_number', $request->input('mobile_number'))->first();
         
         if(! $user)
         {
-            return response()->json(['message' => 'User not found !'], 400);
-        }
-
-
-        //$otp = $this->sendOTP($request->input('mobile_number'));
-
-        $otp = '1111';
-
-        if(! is_numeric($otp))
-        {
-            return response()->json(['message' => 'Failed to send OTP !'], 400);
-        }
-
-        $user->otp = $otp;
+            $status = 4;
+            $info = "User not found !";
+            $data = '';
+            return ResponseBuilder::result($status, $info, $data);
             
-        $user->save();
+        }
+        else
+        {
+            //$otp = $this->sendOTP($request->input('mobile_number'));
 
-        //return successful response
-        return response()->json([
-            'status' => 'success',
-            'data' => $user, 
-            'message' => 'Resend otp successfully' 
-        ]);
+            $otp = '1111';
 
-
+            $user->otp = $otp;
+            
+            $user->save();
+            
+            $status = 2;
+            $info = "Resend otp successfully";
+            $data = $user;
+            return ResponseBuilder::result($status, $info, $data);
+                
+        }
+        $status = 6;
+        $info =  'Something went wrong !';
+        $data = '';
+        return ResponseBuilder::result($status, $info, $data);
 
     }
     /**
@@ -165,61 +181,67 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         //validate incoming request 
-        $this->validate($request, [
-            'mobile_number' => 'required|numeric',
-            'password' => 'required|string',
-        ]);
 
         $validator = Validator::make($request->all(), [
             'mobile_number' => 'required|numeric',
             'password' => 'required'
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => 3, 
-                'data' =>  $validator->errors(),
-                'message' => 'Validation failed' 
-            ]);
+        if ($validator->fails()) 
+        {
+            $status = 3;
+            $info =  'Validation failed';
+            $data = $validator->errors();
+            return ResponseBuilder::result($status, $info, $data);    
         }
 
         $user = User::where('mobile_number', $request->input('mobile_number'))->first();
 
         if(! $user )
         {
-            return response()->json([
-                'status' => 4, 
-                'message' => 'Mobile number does not exist !' 
-            ]);
+            $status = 4;
+            $info = "User not found !";
+            $data = '';
+            return ResponseBuilder::result($status, $info, $data);
+            
         }
 
         if($user->is_otp_verified == 0)
         {
-            $message = 'OTP not verified';
+            $status = 3;
+            $info = "OTP not verified !";
+            $data = '';
             $user->delete();
-            return response()->json(['message' => $message]);
+            return ResponseBuilder::result($status, $info, $data);
 
         }
 
         $credentials = $request->only(['mobile_number', 'password']);
 
-        if (! $token = Auth::attempt($credentials)) {
+        if (! $token = Auth::attempt($credentials)) 
+        {
+            $status = 4;
+            $info = "Incorrect password or mobile number !";
+            $data = '';
+            return ResponseBuilder::result($status, $info, $data);
+        }
+        else
+        {
+            //return $this->respondWithToken($token);
+            $token = Auth::attempt($credentials);
+
+            //return successful response
             return response()->json([
-                'status' => 4, 
-                'message' => 'Incorrect password !' 
+                'token' => $token,
+                'status' => 2,
+                'data' => $user, 
+                'message' => 'User login successfully' 
             ]);
         }
-
-        //return $this->respondWithToken($token);
-        $token = Auth::attempt($credentials);
-
-        //return successful response
-        return response()->json([
-            'token' => $token,
-            'status' => 2,
-            'data' => $user, 
-            'message' => 'User login successfully' 
-        ]);
+        $status = 6;
+        $info =  'Something went wrong !';
+        $data = '';
+        return ResponseBuilder::result($status, $info, $data);
     }
 
     public function sendOTP($mobile_number) 
@@ -267,5 +289,29 @@ class AuthController extends Controller
         $validate = Validator::make($this->user_code, $rules)->passes();
 
         return $validate ? $this->user_code['user_code'] : $this->genUserCode();
+    }
+
+    public function changePassword(Request $request)
+    {
+
+        $currentPassword = $request->currentPassword;
+        $newPassword = $request->newPassword;
+        $user = Auth::user();
+        
+        if (password_verify($currentPassword, $user->password)) 
+        {
+            $newPassword = app('hash')->make($newPassword);
+            $user->password = $newPassword;
+            $user->save();
+            $status = 2;
+            $info = "Password changed succesfully";
+        } 
+        else 
+        {
+            $status = 3;
+            $info = "Incorrect current password";
+        }
+        return ResponseBuilder::result($status, $info, $currentPassword);
+
     }
 }

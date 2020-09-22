@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Validator;
 use Image;
 use App\ProductUnit;
 use App\Product;
@@ -261,7 +262,7 @@ class ProductsController extends Controller
             
         } catch (\Exception $e) {
             \DB::rollback();
-            return response()->json(['message' => 'Something went wrong!'], 404);
+            return response()->json(['message' => 'Something went wrong!'], 40);
         }
         
         $status = 2;
@@ -353,6 +354,28 @@ class ProductsController extends Controller
     // preview product
     public function previewProducts(Request $request)
     {
+        // delete existing photos
+        // $destinationPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR;
+
+        // $destinationPhotosPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR. "photos". DIRECTORY_SEPARATOR;
+
+        // $destinationThumbnailPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR. "thumbnail". DIRECTORY_SEPARATOR;
+        
+        // $product_photos = ProductPhoto::all();
+        // if($product_photos)
+        // {
+        //     foreach ($product_photos as $key => $product_photo) 
+        //     {
+        //         unlink($destinationPath.$product_photo->photo_name); 
+        //         unlink($destinationPhotosPath.$product_photo->photo_name); 
+        //         unlink($destinationThumbnailPath.$product_photo->photo_name); 
+        //     }
+        // }
+
+        PreviewProductPhoto::truncate();
+        PreviewProductUnit::truncate();
+        PreviewProduct::truncate();
+
         try {
             \DB::beginTransaction();
             //validate request parameters
@@ -375,7 +398,7 @@ class ProductsController extends Controller
             // save images
             foreach ($request->product_images as $key => $image) {
                 $product_photo = new PreviewProductPhoto();
-                $product_photo->product_id = $product->id;
+                $product_photo->preview_product_id = $product->id;
 
                 if($image)
                 {
@@ -406,7 +429,7 @@ class ProductsController extends Controller
             foreach ($request->product as $key => $product_unit) 
             {
                 $productUnits = new PreviewProductUnit();
-                $productUnits->product_id = $product->id;
+                $productUnits->preview_product_id = $product->id;
                 $productUnits->units = $product_unit['unit'];
                 $productUnits->code = $product_unit['code'];
                 $productUnits->mrp = $product_unit['mrp'];
@@ -421,7 +444,7 @@ class ProductsController extends Controller
             
         } catch (\Exception $e) {
             \DB::rollback();
-            return response()->json(['message' => 'Something went wrong!'], 404);
+            return response()->json(['message' => 'Something went wrong!'], 401);
         }
         
         $status = 2;
@@ -445,5 +468,62 @@ class ProductsController extends Controller
             $message = "Product not available";
         }
         return ResponseBuilder::result($status, $message, $product);
+    }
+
+    public function saveImages(Request $request)
+    {
+        // foreach ($request->images as $key => $image) 
+        // {
+        //     $validator = Validator::make($request->all(), [
+        //         'images' => 'required|mimes:jpg,jpeg,png,bmp|max:2048'
+        //     ]);
+    
+        //     if ($validator->fails()) {
+        //         $status=1;
+        //         $content = $validator->errors();
+        //         $message = "Validation failed.";
+        //         return ResponseBuilder::result($status, $message, $content);
+        //     }
+        // }
+        
+    
+        $uploaded_image = [];
+        $uploaded_images = [];
+        //save images
+        if($request->images)
+        {
+            foreach ($request->images as $key => $image) 
+            {
+                if($image)
+                {
+                    $destinationPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR;
+                     $product_photo = new ProductPhoto();
+                     $product_photo->product_id = 0;
+                     $image_parts = explode(";base64,", $image);
+                     $image_type_aux = explode("image/", $image_parts[0]);
+                     $image_type = $image_type_aux[1];
+                     $image_base64 = base64_decode($image_parts[1]);
+                     $photo_name = uniqid() .'.'. $image_type;
+                     $file = $destinationPath . $photo_name;
+                     file_put_contents($file, $image_base64);
+                     
+                     $this->resizeImageSave($image_base64, $photo_name);
+                     $product_photo->photo_name = $photo_name;
+                     $product_photo->photo_url = url('/uploads/products/'.$photo_name);
+                     $uploaded_image['photo_name'] = $photo_name;
+                     $uploaded_image['photo_url'] = url('/uploads/products/'.$photo_name);
+                     $uploaded_images[] = $uploaded_image;
+                    $product_photo->save();
+                } 
+            }
+            $status = 2;
+            $message = "Images saved succesfully";
+        }
+        else {
+            $status = 3;
+            $message = "Something wrong !";
+            $product_photo = '';
+        }
+        return ResponseBuilder::result($status, $message,  $uploaded_images);
     }
 }

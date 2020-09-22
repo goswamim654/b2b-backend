@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Auth;
 use  App\User;
+use Validator;
 use Illuminate\Http\Request;
 use App\Http\Helper\ResponseBuilder;
 
@@ -26,10 +27,11 @@ class UserController extends Controller
      */
     public function profile()
     {
-
         $user = Auth::user();
         $user->contact_numbers = explode(',', $user->contact_numbers);  
-        return response()->json(['user' => $user], 200);
+        $status = 2;
+        $info = "Profile data retrived successfully";
+        return ResponseBuilder::result($status, $info, $user);
     }
     /**
      * update company info.
@@ -40,7 +42,7 @@ class UserController extends Controller
     {
         // validate incoming request 
 
-        $this->validate($request, [
+        $validator = Validator::make($request->all(), [
             'business_name' => 'required',
             'business_address' => 'required',
             'city' => 'required',
@@ -51,6 +53,13 @@ class UserController extends Controller
             //'contact_numbers' => 'required',
             'email' => 'required| email',
         ]);
+        if ($validator->fails()) 
+        {
+            $status = 3;
+            $info =  'Validation failed';
+            $data = $validator->errors();
+            return ResponseBuilder::result($status, $info, $data);    
+        }
 
         $user = Auth::user();
         $user->business_name = $request->business_name;
@@ -91,7 +100,7 @@ class UserController extends Controller
         $user->status = 1;
         $user->save();
 
-        $status = 'success';
+        $status = 2;
         $message = "Profile data updated succesfully";
         return ResponseBuilder::result($status, $message, $user);
     }
@@ -134,10 +143,6 @@ class UserController extends Controller
         $status = 2;
         $info = "Retrived cities succesfully";
         return ResponseBuilder::result($status, $info, $cities["$state"]);
-    }
-    public function getStates($cid)
-    {
-        
     }
 
 }

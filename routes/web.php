@@ -15,7 +15,7 @@ $router->get('/', function () use ($router) {
     return $router->app->version();
 });
 
-// API route group
+    // API route group
 $router->group(['prefix' => 'api'], function () use ($router) {
     // Matches "/api/register
     $router->post('register', 'AuthController@register');
@@ -29,14 +29,17 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     // Matches "/api/login
     $router->post('login', 'AuthController@login');
 
+    // Matches "/api/changePassword
+    $router->post('changePassword', 'AuthController@changePassword');
+
     // Matches "/api/profile
     $router->get('profile', 'UserController@profile');
 
     // Matches "/api/profileUpdate
     $router->post('profileUpdate', 'UserController@profileUpdate');
 
-     // Matches "/api/Cities
-     $router->get('getCities/[{state}]', 'UserController@getCities');
+    // Matches "/api/Cities
+    $router->get('getCities/[{state}]', 'UserController@getCities');
 
 
     // Matches "/api/users/1 
@@ -75,4 +78,6 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     // preview product
     $router->post('previewProducts', 'ProductsController@previewProducts');
     $router->get('previewProductsDetails/[{id}]', 'ProductsController@previewProductsDetails');
+
+    $router->post('saveImages', 'ProductsController@saveImages');
 });
