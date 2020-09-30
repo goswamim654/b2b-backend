@@ -78,7 +78,7 @@ class ProductsController extends Controller
         if(count($product) > 0)
         {
             $status = 2;
-            $message = "Product retrived succesfully";
+            $message = "Product retrieved successfully";
         }
         else
         {
@@ -163,14 +163,13 @@ class ProductsController extends Controller
         
         $status = 2;
         $message = "Product saved succesfully";
+        $product = Product::where('id', '=', $product->id)->with('photos')->with('units')->get();
         return ResponseBuilder::result($status, $message, $product);
         
     }
 
     public function update($id, Request $request)
     {
-        
-        
         try {
             \DB::beginTransaction();
             //validate request parameters
@@ -267,6 +266,7 @@ class ProductsController extends Controller
         
         $status = 2;
         $message = "Product updated succesfully";
+        $product = Product::where('id', '=', $product->id)->with('photos')->with('units')->get();
         return ResponseBuilder::result($status, $message, $product);
 
        
@@ -327,7 +327,7 @@ class ProductsController extends Controller
         $images['photos'] = $images_photos;
 
         $status = 2;
-        $message = "Product photo retrived succesfully";
+        $message = "Product photo retrieved successfully";
         return ResponseBuilder::result($status, $message, $images);
     }
     public function updateProductAvalibility(Request $request)
@@ -449,6 +449,7 @@ class ProductsController extends Controller
         
         $status = 2;
         $message = "Product saved succesfully";
+        $product = PreviewProduct::where('id', '=', $product->id)->with('photos')->with('units')->get();
         return ResponseBuilder::result($status, $message, $product);
         
     }
@@ -472,19 +473,45 @@ class ProductsController extends Controller
 
     public function saveImages(Request $request)
     {
-        // foreach ($request->images as $key => $image) 
-        // {
-        //     $validator = Validator::make($request->all(), [
-        //         'images' => 'required|mimes:jpg,jpeg,png,bmp|max:2048'
-        //     ]);
-    
-        //     if ($validator->fails()) {
-        //         $status=1;
-        //         $content = $validator->errors();
-        //         $message = "Validation failed.";
-        //         return ResponseBuilder::result($status, $message, $content);
-        //     }
+        
+        if(count($request->images) == 0)
+        {   
+            $status=3;
+            $content = '';
+            $message = "Image file is required";
+            return ResponseBuilder::result($status, $message, $content);
+        }
+        if($request->hasFile('images'))
+        {
+            $allowedfileExtension=['jpg','png','jpeg','gif','bmp'];
+            $files = $request->file('images');
+            foreach($files as $file)
+            {
+                $filename = $file->getClientOriginalName();
+                $extension = $file->getClientOriginalExtension();
+                $check=in_array($extension,$allowedfileExtension);
+                if(! $check)
+                {
+                    $status=3;
+                    $content = '';
+                    $message = "Sorry Only Upload png, jpg, jpeg, gif, bmp";
+                    return ResponseBuilder::result($status, $message, $content);
+                }
+
+            }
+        }
+
+        // $validator = Validator::make($request->all(), [
+        //     'images.*' => 'max:5048'
+        // ]);
+
+        // if ($validator->fails()) {
+        //     $status=3;
+        //     $content = '';
+        //     $message = "Max file size allowed is 5MB";
+        //     return ResponseBuilder::result($status, $message, $content);
         // }
+        
         
     
         $uploaded_image = [];
@@ -520,7 +547,7 @@ class ProductsController extends Controller
             $message = "Images saved succesfully";
         }
         else {
-            $status = 3;
+            $status = 6;
             $message = "Something wrong !";
             $product_photo = '';
         }

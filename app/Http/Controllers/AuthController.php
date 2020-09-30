@@ -293,6 +293,19 @@ class AuthController extends Controller
 
     public function changePassword(Request $request)
     {
+        //validate incoming request 
+        $validator = Validator::make($request->all(), [
+            'currentPassword' => 'required',
+            'newPassword' => 'required',
+        ]);
+
+        if ($validator->fails()) 
+        {
+            $status = 3;
+            $info =  'Validation failed';
+            $data = $validator->errors();
+            return ResponseBuilder::result($status, $info, $data);
+        }
 
         $currentPassword = $request->currentPassword;
         $newPassword = $request->newPassword;
@@ -304,12 +317,12 @@ class AuthController extends Controller
             $user->password = $newPassword;
             $user->save();
             $status = 2;
-            $info = "Password changed succesfully";
+            $info = "Password updated succesfully";
         } 
         else 
         {
             $status = 3;
-            $info = "Incorrect current password";
+            $info = "The current password does not match";
         }
         return ResponseBuilder::result($status, $info, $currentPassword);
 

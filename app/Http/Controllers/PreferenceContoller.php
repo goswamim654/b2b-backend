@@ -23,14 +23,18 @@ class PreferenceContoller extends Controller
     public function getPreferences() 
     {
         $preference = Preference::where('user_id', '=', Auth::id())->first();
-        if($preference)
+        if($preference->categories)
             $preference->categories = explode(',',$preference->categories);
+        else
+            $preference->categories = '';
         $status = '2';
         $message = "Preferences data";
         return ResponseBuilder::result($status, $message, $preference);
     }
     public function updatePreferences(Request $request) 
     {
+
+
         $preference = Preference::where('user_id', '=', Auth::id())->first();
         if ($preference === null) {
             $preference = new Preference();
@@ -44,7 +48,10 @@ class PreferenceContoller extends Controller
         $preference->display_mrp = $request->display_mrp;
         $preference->display_margin = $request->display_margin;
         $preference->general_info = $request->general_info;
-        $preference->categories = implode(',',$request->categories);
+        if($request->categories)
+            $preference->categories = implode(',',$request->categories);
+        else 
+        $preference->categories = '';  
         $preference->save();
 
         $status = 2;
