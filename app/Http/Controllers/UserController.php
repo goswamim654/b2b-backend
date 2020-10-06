@@ -75,6 +75,9 @@ class UserController extends Controller
         else
             $user->contact_numbers = ''; 
         $user->email = $request->email;
+
+        if($request->others)
+            $user->other = $request->others;
         $user->ip = $request->ip();
 
         // logo upload
@@ -142,7 +145,47 @@ class UserController extends Controller
         $cities = include(resource_path('appData/cities.php'));
         $status = 2;
         $info = "Retrived cities succesfully";
+        $state = str_replace("%20", " ", $state);
         return ResponseBuilder::result($status, $info, $cities["$state"]);
     }
+
+    public function getSellers()
+    {
+        
+         $data = User::where('user_type', '=', 's')->get();
+         if($data)
+         {
+            $status = 2;
+            $info = "Listed user data succesfully";
+         }
+         else
+         {
+            $data = '';
+            $status = 4;
+            $info = "Seller not found"; 
+         }
+
+         return ResponseBuilder::result($status, $info, $data);
+    }
+
+    public function getBuyers()
+    {
+        
+         $data = User::where('user_type', '=', 'b')->get();
+         if($data)
+         {
+            $status = 2;
+            $info = "Listed user data succesfully";
+         }
+         else
+         {
+            $data = '';
+            $status = 4;
+            $info = "Buyers not found"; 
+         }
+
+         return ResponseBuilder::result($status, $info, $data);
+    }
+
 
 }

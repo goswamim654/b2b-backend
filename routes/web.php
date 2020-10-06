@@ -49,6 +49,12 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     // Matches "/api/users
     $router->get('users', 'UserController@allUsers');
 
+    // Matches "/api/getSellers
+    $router->get('getSellers', 'UserController@getSellers');
+
+    // Matches "/api/getBuyers
+    $router->get('getBuyers', 'UserController@getBuyers');
+
     // Matches "/api/preferences
     $router->post('updatePreferences', 'PreferenceContoller@updatePreferences');
 

@@ -24,6 +24,7 @@ class CreateUsersTable extends Migration
             $table->string('password')->notNullable();
             $table->string('business_name')->nullable();
             $table->string('business_category')->nullable();
+            $table->string('other')->nullable();
             $table->text('business_address')->nullable();
             $table->string('city')->nullable();
             $table->string('state')->nullable();
