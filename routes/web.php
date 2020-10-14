@@ -86,4 +86,9 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     $router->get('previewProductsDetails/[{id}]', 'ProductsController@previewProductsDetails');
 
     $router->post('saveImages', 'ProductsController@saveImages');
+
+    $router->get('search/[{keyword}]', 'ProductsController@search');
+
+    $router->post('getSearchResult', 'ProductsController@getSearchResult');
+
 });

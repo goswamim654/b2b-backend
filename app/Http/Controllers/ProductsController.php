@@ -13,6 +13,7 @@ use App\PreviewProductPhoto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Helper\ResponseBuilder;
+use  App\User;
 
 class ProductsController extends Controller
 {
@@ -102,6 +103,7 @@ class ProductsController extends Controller
             ]);
 
             $product = new Product();
+            $product->user_id = Auth::id();
             $product->category = $request->category;
             $product->sub_category = $request->sub_category;
             $product->name = $request->name;
@@ -552,5 +554,196 @@ class ProductsController extends Controller
             $product_photo = '';
         }
         return ResponseBuilder::result($status, $message,  $uploaded_images);
+    }
+
+    public function search($keyword)
+    {
+        $keyword = str_replace('%20', ' ',$keyword);
+        $sound = " ";
+        $users = User::all();
+        foreach ($users as $key => $user) 
+        {
+           if($user->business_name && $user->business_category)
+           {
+                $words = explode(" ", $user->business_name);
+                foreach($words as $word)
+                {
+                    $sound .= metaphone($word). " ";
+                }
+
+                $words = explode(" ", $user->business_category);
+                foreach($words as $word)
+                {
+                    $sound .= metaphone($word). " ";
+                }
+           }
+           $user_details = User::find($user->id);
+           $user_details->indexing = $sound;
+           $user_details->save();
+           $sound = " ";
+
+        }
+        $keyword = strtolower($keyword);
+        $keyword_arr = explode(" ", $keyword);
+        $search_string = "";
+        foreach($keyword_arr as $word)
+        {
+            $search_string .= metaphone($word). " "; 
+        }
+        // $data = User::whereRaw('LOWER(indexing) like ?', [strtolower('%'.$search_string . '%')])->select('business_name', 'business_category')->get();
+        $data = User::where('indexing', 'LIKE', '%' . $search_string . '%')->orWhereRaw('LOWER(business_name) like ?', [strtolower('%'.$keyword . '%')])->orWhereRaw('LOWER(business_category) like ?', [strtolower('%'.$keyword . '%')])->orWhereRaw('LOWER(state) like ?', [strtolower('%'.$keyword . '%')])->pluck('business_name');
+        $data = collect($data->toArray())->flatten()->all();
+
+        $sound = " ";
+        $products = Product::all();
+
+        foreach($products as $product)
+        {
+            if($product)
+            {
+                $words = explode(" ", $product->name);
+                foreach($words as $word)
+                {
+                    $sound .= metaphone($word). " ";
+                }
+                $product_details = Product::find($product->id);
+                $product_details->indexing = $sound;
+                $product_details->save();
+            }
+        }
+
+        $products = Product::where('indexing', 'LIKE', '%' . $search_string . '%')->orWhereRaw('LOWER(name) like ?', [strtolower('%'.$keyword . '%')])->pluck('name');
+        
+        //dd($products);
+        foreach ($products as $key => $product) 
+        {
+            $data[] = $product;
+        }
+        $data =  array_intersect_key($data, array_unique(array_map('strtolower', $data)));
+
+        if(count($data) > 0)
+        {
+            $status = 2;
+            $message = "Search result found";
+        }
+        else
+        {
+            $message = 'No Details found. Try to search again !';
+            $status = 4;
+            $data = '';
+        }
+        return ResponseBuilder::result($status, $message, $data);
+
+    }
+    public function getSearchResult(Request $request)
+    {
+        $keyword = $request->search_keyword;
+        $state = $request->state;
+        $keyword = str_replace('%20', ' ',$keyword);
+        $sound = " ";
+        $user_type = Auth::user()->pluck('user_type');
+        if($user_type == 'b')
+            $users = User::where('user_type', '=', 'b')->get();
+        else
+            $users = User::where('user_type', '=', 's')->get(); 
+
+        foreach ($users as $key => $user) 
+        {
+           if($user->business_name && $user->business_category)
+           {
+                $words = explode(" ", $user->business_name);
+                foreach($words as $word)
+                {
+                    $sound .= metaphone($word). " ";
+                }
+
+                $words = explode(" ", $user->business_category);
+                foreach($words as $word)
+                {
+                    $sound .= metaphone($word). " ";
+                }
+           }
+           $sound = " ";
+
+        }
+        $keyword = strtolower($keyword);
+        $keyword_arr = explode(" ", $keyword);
+        $search_string = "";
+        foreach($keyword_arr as $word)
+        {
+            $search_string .= metaphone($word). " "; 
+        }
+        $query = User::where('indexing', 'LIKE', '%' . $search_string . '%')->orWhereRaw('LOWER(business_name) like ?', [strtolower('%'.$keyword . '%')])->orWhereRaw('LOWER(business_category) like ?', [strtolower('%'.$keyword . '%')])->select('id', 'logo_url','business_name', 'city', 'state', 'user_type');
+        if($state)
+            $data = $query->where('state', '=', $state)->get();
+        else
+        $data = $query->get(); 
+       
+
+        $sound = " ";
+        $products = Product::all();
+
+        foreach($products as $product)
+        {
+            if($product)
+            {
+                $words = explode(" ", $product->name);
+                foreach($words as $word)
+                {
+                    $sound .= metaphone($word). " ";
+                }
+            }
+        }
+
+        $products = Product::where('indexing', 'LIKE', '%' . $search_string . '%')->orWhereRaw('LOWER(name) like ?', [strtolower('%'.$keyword . '%')])->select('id','name', 'user_id')->with('photos')->with('user')->get();
+        
+        //dd($products);
+        $product_search = [];
+        foreach ($products as $key => $product) 
+        {
+            if($state)
+            {
+                if($product->user->state == $state)
+                {
+                    $product_search['user_type'] = '';
+                    $product_search['id'] = $product->id;
+                    $product_search['business_name'] = $product->user->business_name; 
+                    foreach($product->photos as $photo ) {
+                        $product_search['logo_url'] = $photo->photo_url;
+                        break;
+                    }
+                    $product_search['city'] = $product->user->city;
+                    $product_search['state'] = $product->user->state;
+                    $data[] = $product_search;
+                }
+            }
+            else{
+                $product_search['user_type'] = '';
+                $product_search['id'] = $product->id;
+                $product_search['business_name'] = $product->user->business_name; 
+                foreach($product->photos as $photo ) {
+                    $product_search['logo_url'] = $photo->photo_url;
+                    break;
+                }
+                $product_search['city'] = $product->user->city;
+                $product_search['state'] = $product->user->state;
+                $data[] = $product_search;
+            }
+        }
+
+
+        if(count($data) > 0)
+        {
+            $status = 2;
+            $message = "Search result found";
+        }
+        else
+        {
+            $message = 'No Details found. Try to search again !';
+            $status = 4;
+            $data = '';
+        }
+        return ResponseBuilder::result($status, $message, $data);
+
     }
 }

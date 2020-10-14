@@ -34,7 +34,7 @@ class PreferenceContoller extends Controller
     public function updatePreferences(Request $request) 
     {
 
-
+        dd($request->visibility);
         $preference = Preference::where('user_id', '=', Auth::id())->first();
         if ($preference === null) {
             $preference = new Preference();

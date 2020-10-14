@@ -20,8 +20,8 @@ class AuthController extends Controller
     {        
         $validator = Validator::make($request->all(), [
             'mobile_number' => 'required|numeric|unique:users',
-            'password' => 'required',
-            'user_type' => 'required',
+            'password' => 'required|min:6',
+            'user_type' => 'required|max:1',
         ]);
 
         if ($validator->fails()) {
@@ -82,8 +82,8 @@ class AuthController extends Controller
         //validate incoming request 
         $validator = Validator::make($request->all(), [
             'mobile_number' => 'required|numeric',
-            'password' => 'required',
-            'otp' => 'required|numeric',
+            'password' => 'required|min:6',
+            'otp' => 'required|numeric|min:4',
         ]);
 
         if ($validator->fails()) {

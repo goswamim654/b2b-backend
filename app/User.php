@@ -55,4 +55,9 @@ class User extends Model implements AuthenticatableContract, AuthorizableContrac
     {
         return [];
     }
+
+    public function product()
+    {
+        return $this->hasMany('App\Product');
+    }
 }
