@@ -60,7 +60,10 @@ $app->singleton(
 */
 
 $app->configure('app');
-
+$app->configure('mail');
+$app->alias('mailer', Illuminate\Mail\Mailer::class);
+$app->alias('mailer', Illuminate\Contracts\Mail\Mailer::class);
+$app->alias('mailer', Illuminate\Contracts\Mail\MailQueue::class);
 /*
 |--------------------------------------------------------------------------
 | Register Middleware
@@ -102,7 +105,7 @@ $app->register(Flipbox\LumenGenerator\LumenGeneratorServiceProvider::class);
 
 class_alias('Intervention\Image\Facades\Image', 'Image');
 $app->register(Intervention\Image\ImageServiceProvider::class);
-
+$app->register(\Illuminate\Mail\MailServiceProvider::class);
 
 /*
 |--------------------------------------------------------------------------

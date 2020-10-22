@@ -14,6 +14,7 @@
 $router->get('/', function () use ($router) {
     return $router->app->version();
 });
+$router->get('test-email', 'UserController@testEmail');
 
     // API route group
 $router->group(['prefix' => 'api'], function () use ($router) {
@@ -31,6 +32,14 @@ $router->group(['prefix' => 'api'], function () use ($router) {
 
     // Matches "/api/changePassword
     $router->post('changePassword', 'AuthController@changePassword');
+
+    // Matches "/api/send-reset-password-link
+
+    $router->post('send-reset-password-link', 'AuthController@sendResetPasswordLink');
+
+    // Matches "/api/reset-password
+
+    $router->post('reset-password', 'AuthController@resetPassword');
 
     // Matches "/api/profile
     $router->get('profile', 'UserController@profile');

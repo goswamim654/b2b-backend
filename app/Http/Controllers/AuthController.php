@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
-use  App\User;
-use Validator;
 use App\Http\Helper\ResponseBuilder;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use  App\User;
+use App\PasswordReset;
+use Validator;
 
 class AuthController extends Controller
 {
@@ -184,7 +187,7 @@ class AuthController extends Controller
 
         $validator = Validator::make($request->all(), [
             'mobile_number' => 'required|numeric',
-            'password' => 'required'
+            'password' => 'required| min:6'
         ]);
 
         if ($validator->fails()) 
@@ -208,7 +211,7 @@ class AuthController extends Controller
 
         if($user->is_otp_verified == 0)
         {
-            $status = 3;
+            $status = 4;
             $info = "OTP not verified !";
             $data = '';
             $user->delete();
@@ -233,6 +236,8 @@ class AuthController extends Controller
             //return successful response
             return response()->json([
                 'token' => $token,
+                'token_type' => 'bearer',
+                'expires_in' => Auth::factory()->getTTL() * 60 * 60 * 24 * 7,
                 'status' => 2,
                 'data' => $user, 
                 'message' => 'User login successfully' 
@@ -327,4 +332,165 @@ class AuthController extends Controller
         return ResponseBuilder::result($status, $info, $currentPassword);
 
     }
+
+    public function sendResetPasswordLink(Request $request)
+	{ 
+
+        $input= array_map('trim', $request->all());
+        
+		try{
+
+            \DB::beginTransaction();
+            
+			$validationRules=[
+	            'email' => 'required|email',
+	        ];
+	        $validator= \Validator::make($input, $validationRules);
+	        if($validator->fails()){
+	            $status=3;
+	            $content = $validator->errors();
+                $message="Validation failed";
+                return ResponseBuilder::result($status, $message, $content);
+	        }
+
+            $user = User::where('email', $input['email'])->first();
+            
+            if($user == null)
+            {
+                $status=4;
+		        $content="";
+                $message="No user found with the provided email";
+                
+            }
+            else
+            {
+	        	$deleteExistingTokens = PasswordReset::where('email', $input['email'])->delete();
+
+	        	$microTime=preg_replace('/(0)\.(\d+) (\d+)/', '$3$1$2', microtime());
+		        $length=rand(20,30);
+		        $tokenPre = bin2hex(random_bytes($length));
+                $token = $tokenPre.$microTime;
+                
+                $password_reset = new PasswordReset();
+                $password_reset->email = $input['email'];
+		        $password_reset->token = $token;
+		        $password_reset->ip = $request->ip();
+                $password_reset->expire_at = \Carbon\Carbon::now()->addMinutes(60);
+                
+                
+                $createUserToken = $password_reset->save();
+                
+                if($createUserToken)
+                {
+		            $passwordResetLink="https://www.alegralabs.com/mukesh/b2b/reset-password-link.php?token=".$token;
+
+		            $data['receiver_name']= $user->business_name;
+		            $data['password_reset_link'] = $passwordResetLink;
+                    $data['created_at'] = $password_reset['created_at'];
+                    
+		            $mailSent = Mail::send('emails.reset-password-mail', $data, function($message) use($user) {
+                        
+		            	$receiverEmail=trim($user->email);
+					    $message->to($receiverEmail, $user->business_name)
+					            ->subject('B2B password reset link');
+					    $message->from('b2b@noreply.com','B2B');
+                    });
+                    
+                    $status=2;
+                    $content="";
+                    $message="Reset password link sent successfully.";
+                    
+                }
+                else
+                {
+		            $status=5;
+		            $content="";
+                    $message="Operation failed, could not generate and send the reset password link.";
+                    
+		        }
+	        }
+
+	        \DB::commit();
+	    }
+        catch(\Exception $e){
+        	\DB::rollback();
+        	$status=6;
+	        $content=$e;
+	        $message="Something went wrong !";
+        }
+
+        return ResponseBuilder::result($status, $message, $content);
+    }
+    
+    public function resetPassword(Request $request)
+	{ 
+		$input=array_map('trim', $request->all());
+		try{
+			\DB::beginTransaction();
+			$validationRules=[
+	            'password' => 'required|confirmed|min:6',
+	            'token' => 'required'
+	        ];
+	        $validator= \Validator::make($input, $validationRules);
+	        if($validator->fails()){
+	            $status = 3;
+	            $content = $validator->errors();
+	            $message = "Validation failed";
+                return ResponseBuilder::result($status, $message, $content);
+	        }
+
+	        $tokenData= PasswordReset::where('token', $input['token'])->first();
+            if($tokenData === null)
+            {
+                $status=4;
+                $content="";
+                $message="The link you are using is invalid. Please request a new reset password link.";
+            }
+            else
+            {
+		        
+		        $expirationTime=$tokenData->expire_at;
+                if (\Carbon\Carbon::now()->lte(\Carbon\Carbon::parse($expirationTime)))
+                {
+
+		        	$updateData['password']=Hash::make($input['password']);
+		        	$updateData['ip']=$request->ip();
+		        	$updateData['updated_at']=\Carbon\Carbon::now()->toDateTimeString();
+		        	$updateRes=User::where('email', $tokenData->email)->update($updateData);
+                    if($updateRes==true)
+                    {
+		        		$deleteExistingTokens=PasswordReset::where('token', $input['token'])->delete();
+	            		$status=2;
+		                $content="";
+		                $message="Password is reset successfully";
+                    }
+                    else
+                    {
+	            		$status=5;
+		                $content="";
+		                $message="Operation failed, could not update the password";
+	            	}
+                }
+                else
+                {
+                    
+		        	$status=5;
+		            $content="";
+		            $message="Operation failed, the link you are using is expired.";
+		        }
+            }
+
+	        \DB::commit();
+	    }
+        catch(\Exception $e){
+        	\DB::rollback();
+        	$status=6;
+	        $content=$e;
+	        $message="Something went wrong";
+        }
+        return ResponseBuilder::result($status, $message, $content);
+	}
+
+
+
 }

@@ -36,11 +36,11 @@ class ProductsController extends Controller
      */
     public function index()
     {
+        $productList = [];
         $products = Product::with('photos')->with('units')->get();
 
         if(count($products) > 0)
         {
-            $productList = [];
             $product_details = [];
             foreach ($products as $key => $product) 
             {
@@ -57,6 +57,11 @@ class ProductsController extends Controller
                     $product_details['banner_image'] = $photo->photo_url;
                     break;
                 }
+                $thumbnail_image = [];
+                foreach ($product->photos as $key => $photo) {
+                    $thumbnail_image[] = url('/uploads/products/thumbnail/'.$photo->photo_name);
+                }
+                $product_details['thumbnail_image'] = $thumbnail_image;
                 
                 $product_details['photos'] = $product->photos;
                 $productList[] = $product_details;
@@ -74,9 +79,18 @@ class ProductsController extends Controller
 
     public function show($id)
     {
-        $product = Product::where('id', '=', $id)->with('photos')->with('units')->get();
+        $products = Product::where('id', '=', $id)->with('photos')->with('units')->get();
 
-        if(count($product) > 0)
+        foreach($products as $product)
+        {
+            foreach ($product->photos as $key => $photo) 
+            {
+                $product->photos[$key]['thumbnail_image'] = url('/uploads/products/thumbnail/'.$photo->photo_name);
+                $product->photos[$key]['big_image'] = url('/uploads/products/photos/'.$photo->photo_name);
+            }
+            
+        }
+        if(count($products) > 0)
         {
             $status = 2;
             $message = "Product retrieved successfully";
@@ -86,22 +100,33 @@ class ProductsController extends Controller
             $status = 3;
             $message = "Product not available";
         }
-        return ResponseBuilder::result($status, $message, $product);
+        return ResponseBuilder::result($status, $message, $products);
     }
 
     public function store(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            'category' => 'max:255',
+            'sub_category' => 'max:255',
+            'name' => 'required|max:255',
+            'description' => 'max:600',
+            'tax' => 'numeric',
+            "product.*.unit"  => "required|string|distinct|min:3",
+        ]);
+        
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 3, 
+                'data' =>  $validator->errors(),
+                'message' => 'Validation failed' 
+            ]);
+        }
+
         try {
             \DB::beginTransaction();
             //validate request parameters
-            $this->validate($request, [
-                'category' => 'max:255',
-                'sub_category' => 'max:255',
-                'name' => 'required|max:255',
-                'description' => 'max:600',
-                'tax' => 'max:255',
-            ]);
-
+            
             $product = new Product();
             $product->user_id = Auth::id();
             $product->category = $request->category;
@@ -110,57 +135,77 @@ class ProductsController extends Controller
             $product->description = $request->description;
             $product->tax = $request->tax;
             $product->save();
-            
+            // save product from gallery
+            if($request->selected_images)
+            {
+                foreach ($request->selected_images as $key => $image) {
+                    $product_photo = new ProductPhoto();
+                    $product_photo->product_id = $product->id;
+                    $path_parts = pathinfo($image);
+                    $product_photo->photo_name = $path_parts['basename'];
+                    $product_photo->photo_url = $image;
+                    $product_photo->save();
+                }
+            }
             // save images
-            foreach ($request->product_images as $key => $image) {
-                $product_photo = new ProductPhoto();
-                $product_photo->product_id = $product->id;
-
-                if($image)
-                {
-                   
-                    $destinationPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR;
-
-
-                    $image_parts = explode(";base64,", $image);
-                    $image_type_aux = explode("image/", $image_parts[0]);
-                    $image_type = $image_type_aux[1];
-                    $image_base64 = base64_decode($image_parts[1]);
-                    $photo_name = uniqid() .'.'. $image_type;
-                    $file = $destinationPath . $photo_name;
-                    file_put_contents($file, $image_base64);
-
-                    $this->resizeImageSave($image_base64, $photo_name);
-                    $product_photo->photo_name = $photo_name;
-                    $product_photo->photo_url = url('/uploads/products/'.$photo_name);
+            if($request->product_images)
+            {
+                foreach ($request->product_images as $key => $image) {
+                    if($image !== null)
+                    {
+                        $product_photo = new ProductPhoto();
+                        $product_photo->product_id = $product->id;
                     
+                        $destinationPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR;
 
 
-                } 
-                $product_photo->save();
+                        $image_parts = explode(";base64,", $image);
+                        $image_type_aux = explode("image/", $image_parts[0]);
+                        $image_type = $image_type_aux[1];
+                        $image_base64 = base64_decode($image_parts[1]);
+                        $photo_name = uniqid() .'.'. $image_type;
+                        $file = $destinationPath . $photo_name;
+                        file_put_contents($file, $image_base64);
+
+                        $this->resizeImageSave($image_base64, $photo_name);
+                        $product_photo->photo_name = $photo_name;
+                        $product_photo->photo_url = url('/uploads/products/'.$photo_name);
+                        $product_photo->save();
+
+
+                    } 
+                }
             }
 
-
-            // // save units
-            foreach ($request->product as $key => $product_unit) 
+            if($request->product)
             {
-                $productUnits = new ProductUnit();
-                $productUnits->product_id = $product->id;
-                $productUnits->units = $product_unit['unit'];
-                $productUnits->code = $product_unit['code'];
-                $productUnits->mrp = $product_unit['mrp'];
-                $productUnits->rate = $product_unit['rate'];
-                $productUnits->moq = $product_unit['moq'];
-                $productUnits->available = $product_unit['available'];
-                $productUnits->stock = $product_unit['stock'];
-                $productUnits->save();
+                
+                // // save units
+                foreach ($request->product as $key => $product_unit) 
+                {
+                   
+                    $productUnits = new ProductUnit();
+                    $productUnits->product_id = $product->id;
+                    $productUnits->units = $product_unit['unit'];
+                    $productUnits->code = $product_unit['code'];
+                    $productUnits->mrp = $product_unit['mrp'];
+                    $productUnits->rate = $product_unit['rate'];
+                    $productUnits->moq = $product_unit['moq'];
+                    $productUnits->available = $product_unit['available'];
+                    $productUnits->stock = $product_unit['stock'];
+                    $productUnits->save();
+
+                }
+            }
+            else
+            {
 
             }
             \DB::commit();
             
         } catch (\Exception $e) {
             \DB::rollback();
-            return response()->json(['message' => 'Something went wrong!'], 404);
+            return response()->json(['message' => $e], 404);
         }
         
         $status = 2;
@@ -209,7 +254,18 @@ class ProductsController extends Controller
             //         ProductPhoto::findOrFail($product_photo->id)->delete();
             //     }
             // }
-
+            // save product from gallery
+            if($request->selected_images)
+            {
+                foreach ($request->selected_images as $key => $image) {
+                    $product_photo = new ProductPhoto();
+                    $product_photo->product_id = $product->id;
+                    $path_parts = pathinfo($image);
+                    $product_photo->photo_name = $path_parts['filename'];
+                    $product_photo->photo_url = $image;
+                    $product_photo->save();
+                }
+            }
 
             //save images
             foreach ($request->product_images as $key => $image) 
@@ -305,10 +361,7 @@ class ProductsController extends Controller
         });
         $img->save($destinationPhotosPath . $photo_name);
 
-        $imgThumbnail = Image::make($image_base64)->resize(100,null,function($constraint)
-        {
-            $constraint->aspectRatio();
-        });
+        $imgThumbnail = Image::make($image_base64)->resize(50,50);
         $imgThumbnail->save($destinationThumbnailPath . $photo_name);
 
     }
@@ -334,23 +387,70 @@ class ProductsController extends Controller
     }
     public function updateProductAvalibility(Request $request)
     {
+
+        $validator = Validator::make($request->all(), [
+            'unit_id' => 'required|numeric',
+            'availability' => 'required| in:yes, no'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 3, 
+                'data' =>  $validator->errors(),
+                'message' => 'Validation failed' 
+            ]);
+        }
+
         $unit = ProductUnit::find($request->unit_id);
-        $unit->available  = $request->availability;
-        $unit->save();
-        $status = 2;
-        $message = "Product availability updated succesfully";
-        return ResponseBuilder::result($status, $message, $unit);
+        if($unit)
+        {
+            $unit->available  = $request->availability;
+            $unit->save();
+            $status = 2;
+            $message = "Product availability updated successfully";
+            return ResponseBuilder::result($status, $message, $unit);
+        }
+        else
+        {
+            $data = '';
+            $status = 4;
+            $message = "Unit id does not exists";
+            return ResponseBuilder::result($status, $message, $data);
+        }
 
     }
     public function updateProductStatus(Request $request)
     {
-        $unit = ProductUnit::find($request->unit_id);
-        $unit->status  = $request->status;
-        $unit->save();
-        $status = 2;
-        $message = "Product status updated succesfully";
-        return ResponseBuilder::result($status, $message, $unit);
+        $validator = Validator::make($request->all(), [
+            'unit_id' => 'required|numeric',
+            'status' => 'required| in:active, inactive'
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 3, 
+                'data' =>  $validator->errors(),
+                'message' => 'Validation failed' 
+            ]);
+        }
 
+
+        $unit = ProductUnit::find($request->unit_id);
+        if($unit) 
+        {
+            $unit->status  = $request->status;
+            $unit->save();
+            $status = 2;
+            $message = "Product status updated successfully";
+            return ResponseBuilder::result($status, $message, $unit);
+        }
+        else
+        {
+            $data = '';
+            $status = 4;
+            $message = "Unit id does not exists";
+            return ResponseBuilder::result($status, $message, $data);
+        }
     }
 
     // preview product
@@ -475,14 +575,19 @@ class ProductsController extends Controller
 
     public function saveImages(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            'images.*' => 'required|image',
+            'images.*' => 'max:5048'
+        ]);
         
-        if(count($request->images) == 0)
-        {   
-            $status=3;
-            $content = '';
-            $message = "Image file is required";
-            return ResponseBuilder::result($status, $message, $content);
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 3, 
+                'data' =>  $validator->errors(),
+                'message' => 'Validation failed' 
+            ]);
         }
+
         if($request->hasFile('images'))
         {
             $allowedfileExtension=['jpg','png','jpeg','gif','bmp'];
@@ -502,20 +607,8 @@ class ProductsController extends Controller
 
             }
         }
-
-        // $validator = Validator::make($request->all(), [
-        //     'images.*' => 'max:5048'
-        // ]);
-
-        // if ($validator->fails()) {
-        //     $status=3;
-        //     $content = '';
-        //     $message = "Max file size allowed is 5MB";
-        //     return ResponseBuilder::result($status, $message, $content);
-        // }
         
         
-    
         $uploaded_image = [];
         $uploaded_images = [];
         //save images
@@ -523,8 +616,10 @@ class ProductsController extends Controller
         {
             foreach ($request->images as $key => $image) 
             {
+                
                 if($image)
                 {
+                    
                     $destinationPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR;
                      $product_photo = new ProductPhoto();
                      $product_photo->product_id = 0;
@@ -543,28 +638,32 @@ class ProductsController extends Controller
                      $uploaded_image['photo_url'] = url('/uploads/products/'.$photo_name);
                      $uploaded_images[] = $uploaded_image;
                     $product_photo->save();
+                    $status = 2;
+                    $message = "Images saved succesfully";
+                    $data = uploaded_image;
+
                 } 
             }
-            $status = 2;
-            $message = "Images saved succesfully";
+       
         }
         else {
             $status = 6;
             $message = "Something wrong !";
-            $product_photo = '';
+            $data = '';
         }
-        return ResponseBuilder::result($status, $message,  $uploaded_images);
+        //return ResponseBuilder::result($status, $message,  $data);
     }
 
     public function search($keyword)
     {
         $keyword = str_replace('%20', ' ',$keyword);
-        $sound = " ";
+        
         $users = User::all();
         foreach ($users as $key => $user) 
         {
            if($user->business_name && $user->business_category)
            {
+                $sound = " ";
                 $words = explode(" ", $user->business_name);
                 foreach($words as $word)
                 {
@@ -590,17 +689,18 @@ class ProductsController extends Controller
         {
             $search_string .= metaphone($word). " "; 
         }
-        // $data = User::whereRaw('LOWER(indexing) like ?', [strtolower('%'.$search_string . '%')])->select('business_name', 'business_category')->get();
+
         $data = User::where('indexing', 'LIKE', '%' . $search_string . '%')->orWhereRaw('LOWER(business_name) like ?', [strtolower('%'.$keyword . '%')])->orWhereRaw('LOWER(business_category) like ?', [strtolower('%'.$keyword . '%')])->orWhereRaw('LOWER(state) like ?', [strtolower('%'.$keyword . '%')])->pluck('business_name');
         $data = collect($data->toArray())->flatten()->all();
 
-        $sound = " ";
+        
         $products = Product::all();
 
         foreach($products as $product)
         {
             if($product)
             {
+                $sound = " ";
                 $words = explode(" ", $product->name);
                 foreach($words as $word)
                 {
@@ -611,7 +711,7 @@ class ProductsController extends Controller
                 $product_details->save();
             }
         }
-
+        //dd($keyword);
         $products = Product::where('indexing', 'LIKE', '%' . $search_string . '%')->orWhereRaw('LOWER(name) like ?', [strtolower('%'.$keyword . '%')])->pluck('name');
         
         //dd($products);
@@ -640,64 +740,19 @@ class ProductsController extends Controller
         $keyword = $request->search_keyword;
         $state = $request->state;
         $keyword = str_replace('%20', ' ',$keyword);
-        $sound = " ";
+
         $user_type = Auth::user()->pluck('user_type');
-        if($user_type == 'b')
-            $users = User::where('user_type', '=', 'b')->get();
-        else
-            $users = User::where('user_type', '=', 's')->get(); 
-
-        foreach ($users as $key => $user) 
-        {
-           if($user->business_name && $user->business_category)
-           {
-                $words = explode(" ", $user->business_name);
-                foreach($words as $word)
-                {
-                    $sound .= metaphone($word). " ";
-                }
-
-                $words = explode(" ", $user->business_category);
-                foreach($words as $word)
-                {
-                    $sound .= metaphone($word). " ";
-                }
-           }
-           $sound = " ";
-
-        }
-        $keyword = strtolower($keyword);
-        $keyword_arr = explode(" ", $keyword);
-        $search_string = "";
-        foreach($keyword_arr as $word)
-        {
-            $search_string .= metaphone($word). " "; 
-        }
-        $query = User::where('indexing', 'LIKE', '%' . $search_string . '%')->orWhereRaw('LOWER(business_name) like ?', [strtolower('%'.$keyword . '%')])->orWhereRaw('LOWER(business_category) like ?', [strtolower('%'.$keyword . '%')])->select('id', 'logo_url','business_name', 'city', 'state', 'user_type');
-        if($state)
-            $data = $query->where('state', '=', $state)->get();
-        else
-        $data = $query->get(); 
        
+        if($state)
+            $data = User::where('business_name', '=', $keyword)->where('state', '=', $state)->orWhere('business_category', '=', $keyword)->select('id', 'logo_url','business_name', 'city', 'state', 'user_type')->get();
+        else
+            $data = User::where('business_name', '=', $keyword)->orWhere('business_category', '=', $keyword)->select('id', 'logo_url','business_name', 'city', 'state', 'user_type')->get();
 
-        $sound = " ";
-        $products = Product::all();
-
-        foreach($products as $product)
-        {
-            if($product)
-            {
-                $words = explode(" ", $product->name);
-                foreach($words as $word)
-                {
-                    $sound .= metaphone($word). " ";
-                }
-            }
-        }
-
-        $products = Product::where('indexing', 'LIKE', '%' . $search_string . '%')->orWhereRaw('LOWER(name) like ?', [strtolower('%'.$keyword . '%')])->select('id','name', 'user_id')->with('photos')->with('user')->get();
         
-        //dd($products);
+            
+       
+        $products = Product::where('name', '=', $keyword)->get();
+
         $product_search = [];
         foreach ($products as $key => $product) 
         {

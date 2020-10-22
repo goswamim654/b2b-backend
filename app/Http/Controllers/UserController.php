@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Auth;
 use  App\User;
 use Validator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use App\Http\Helper\ResponseBuilder;
 
 class UserController extends Controller
@@ -186,6 +187,18 @@ class UserController extends Controller
 
          return ResponseBuilder::result($status, $info, $data);
     }
+
+    public function testEmail(Request $request)
+	{ 
+		$data = array('name'=>"Mukesh Goswami", "body" => "Test mail");
+    
+		Mail::send('emails.resetpassword', $data, function($message) {
+		    $message->to('goswamim654@gmail.com', 'Mukesh Goswami')
+		            ->subject('b2b Testing Mail');
+		    $message->from('ankitpro999@gmail.com','b2b');
+		});
+
+	}
 
 
 }
