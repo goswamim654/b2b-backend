@@ -111,7 +111,7 @@ class ProductsController extends Controller
             'name' => 'required|max:255',
             'description' => 'max:600',
             'tax' => 'numeric',
-            "product.*.unit"  => "required|string|distinct|min:3",
+            "product.*.unit"  => "required|string|min:3",
         ]);
         
 
@@ -134,6 +134,13 @@ class ProductsController extends Controller
             $product->name = $request->name;
             $product->description = $request->description;
             $product->tax = $request->tax;
+            $sound = " ";
+            $words = explode(" ", $request->name);
+            foreach($words as $word)
+            {
+                $sound .= metaphone($word). " ";
+            }
+            $product->indexing = $sound;
             $product->save();
             // save product from gallery
             if($request->selected_images)
@@ -234,6 +241,13 @@ class ProductsController extends Controller
             $product->name = $request->name;
             $product->description = $request->description;
             $product->tax = $request->tax;
+            $sound = " ";
+            $words = explode(" ", $request->name);
+            foreach($words as $word)
+            {
+                $sound .= metaphone($word). " ";
+            }
+            $product->indexing = $sound;
             $product->save();
             
             $destinationPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR;
@@ -658,30 +672,6 @@ class ProductsController extends Controller
     {
         $keyword = str_replace('%20', ' ',$keyword);
         
-        $users = User::all();
-        foreach ($users as $key => $user) 
-        {
-           if($user->business_name && $user->business_category)
-           {
-                $sound = " ";
-                $words = explode(" ", $user->business_name);
-                foreach($words as $word)
-                {
-                    $sound .= metaphone($word). " ";
-                }
-
-                $words = explode(" ", $user->business_category);
-                foreach($words as $word)
-                {
-                    $sound .= metaphone($word). " ";
-                }
-           }
-           $user_details = User::find($user->id);
-           $user_details->indexing = $sound;
-           $user_details->save();
-           $sound = " ";
-
-        }
         $keyword = strtolower($keyword);
         $keyword_arr = explode(" ", $keyword);
         $search_string = "";
@@ -693,25 +683,6 @@ class ProductsController extends Controller
         $data = User::where('indexing', 'LIKE', '%' . $search_string . '%')->orWhereRaw('LOWER(business_name) like ?', [strtolower('%'.$keyword . '%')])->orWhereRaw('LOWER(business_category) like ?', [strtolower('%'.$keyword . '%')])->orWhereRaw('LOWER(state) like ?', [strtolower('%'.$keyword . '%')])->pluck('business_name');
         $data = collect($data->toArray())->flatten()->all();
 
-        
-        $products = Product::all();
-
-        foreach($products as $product)
-        {
-            if($product)
-            {
-                $sound = " ";
-                $words = explode(" ", $product->name);
-                foreach($words as $word)
-                {
-                    $sound .= metaphone($word). " ";
-                }
-                $product_details = Product::find($product->id);
-                $product_details->indexing = $sound;
-                $product_details->save();
-            }
-        }
-        //dd($keyword);
         $products = Product::where('indexing', 'LIKE', '%' . $search_string . '%')->orWhereRaw('LOWER(name) like ?', [strtolower('%'.$keyword . '%')])->pluck('name');
         
         //dd($products);

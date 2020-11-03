@@ -81,6 +81,20 @@ class UserController extends Controller
             $user->other = $request->others;
         $user->ip = $request->ip();
 
+        $sound = " ";
+        $words = explode(" ", $request->business_name);
+        foreach($words as $word)
+        {
+            $sound .= metaphone($word). " ";
+        }
+
+        $words = explode(" ", $request->business_category);
+        foreach($words as $word)
+        {
+            $sound .= metaphone($word). " ";
+        }
+        $user->indexing = $sound;
+
         // logo upload
         if($request->logo)
         {
@@ -154,7 +168,7 @@ class UserController extends Controller
     {
         
          $data = User::where('user_type', '=', 's')->get();
-         if($data)
+         if(count($data))
          {
             $status = 2;
             $info = "Listed user data succesfully";
@@ -173,7 +187,7 @@ class UserController extends Controller
     {
         
          $data = User::where('user_type', '=', 'b')->get();
-         if($data)
+         if(count($data) > 0)
          {
             $status = 2;
             $info = "Listed user data succesfully";
@@ -198,7 +212,15 @@ class UserController extends Controller
 		    $message->from('ankitpro999@gmail.com','b2b');
 		});
 
-	}
-
-
+    }
+    
+    public function  updateUserType() {
+        $user = Auth::user();
+        $user->user_type = 'bs';
+        $user->save();
+        $status = 2;
+        $message = "User type updated  successfully";
+        return ResponseBuilder::result($status, $message, $user);
+    }
+    
 }

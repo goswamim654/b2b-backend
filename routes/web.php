@@ -35,11 +35,11 @@ $router->group(['prefix' => 'api'], function () use ($router) {
 
     // Matches "/api/send-reset-password-link
 
-    $router->post('send-reset-password-link', 'AuthController@sendResetPasswordLink');
+    $router->post('sendResetPasswordLink', 'AuthController@sendResetPasswordLink');
 
     // Matches "/api/reset-password
 
-    $router->post('reset-password', 'AuthController@resetPassword');
+    $router->post('resetPassword', 'AuthController@resetPassword');
 
     // Matches "/api/profile
     $router->get('profile', 'UserController@profile');
@@ -63,6 +63,10 @@ $router->group(['prefix' => 'api'], function () use ($router) {
 
     // Matches "/api/getBuyers
     $router->get('getBuyers', 'UserController@getBuyers');
+
+    // Matches "/api/updateUserType
+    $router->get('updateUserType', 'UserController@updateUserType');
+
 
     // Matches "/api/preferences
     $router->post('updatePreferences', 'PreferenceContoller@updatePreferences');

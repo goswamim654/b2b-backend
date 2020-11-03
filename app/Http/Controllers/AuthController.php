@@ -20,11 +20,12 @@ class AuthController extends Controller
      * @return Response
      */
     public function register(Request $request)
-    {        
+    {    
+        
         $validator = Validator::make($request->all(), [
             'mobile_number' => 'required|numeric|unique:users',
             'password' => 'required|min:6',
-            'user_type' => 'required|max:1',
+            'user_type' => 'required|max:1| in:b, s, bs',
         ]);
 
         if ($validator->fails()) {
@@ -85,7 +86,6 @@ class AuthController extends Controller
         //validate incoming request 
         $validator = Validator::make($request->all(), [
             'mobile_number' => 'required|numeric',
-            'password' => 'required|min:6',
             'otp' => 'required|numeric|min:4',
         ]);
 
@@ -106,8 +106,6 @@ class AuthController extends Controller
             $user->is_otp_verified = 1;
             $user->save();
             $status = 2;
-            $credentials = $request->only(['mobile_number', 'password']);
-            $token = Auth::attempt($credentials);
         }
         else
         {
@@ -119,7 +117,6 @@ class AuthController extends Controller
 
         //return successful response
         return response()->json([
-            'token' => $token,
             'status' => $status,
             'data' => $user, 
             'message' => $otp_verify 
@@ -186,7 +183,7 @@ class AuthController extends Controller
         //validate incoming request 
 
         $validator = Validator::make($request->all(), [
-            'mobile_number' => 'required|numeric',
+            'mobile_number' => 'required|numeric|min:10',
             'password' => 'required| min:6'
         ]);
 
@@ -382,7 +379,8 @@ class AuthController extends Controller
                 
                 if($createUserToken)
                 {
-		            $passwordResetLink="https://www.alegralabs.com/mukesh/b2b/reset-password-link.php?token=".$token;
+                    $passwordResetLink="https://www.alegralabs.com/mukesh/b2b/reset-password/".$token;
+                    //$passwordResetLink="http://localhost:8080/reset-password/".$token;
 
 		            $data['receiver_name']= $user->business_name;
 		            $data['password_reset_link'] = $passwordResetLink;
