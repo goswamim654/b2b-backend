@@ -167,11 +167,11 @@ class UserController extends Controller
     public function getSellers()
     {
         
-         $data = User::where('user_type', '=', 's')->get();
+         $data = User::where('id', '!=', auth()->id())->where([['user_type', '!=', 'b'],['status', '=', 1]])->get();
          if(count($data))
          {
             $status = 2;
-            $info = "Listed user data succesfully";
+            $info = "Listed seller data succesfully";
          }
          else
          {
@@ -186,11 +186,11 @@ class UserController extends Controller
     public function getBuyers()
     {
         
-         $data = User::where('user_type', '=', 'b')->get();
+         $data = User::where('id', '!=', auth()->id())->where([['user_type', '!=', 's'],['status', '=', 1]])->get();
          if(count($data) > 0)
          {
             $status = 2;
-            $info = "Listed user data succesfully";
+            $info = "Listed buyer data succesfully";
          }
          else
          {

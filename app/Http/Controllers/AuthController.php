@@ -25,7 +25,7 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'mobile_number' => 'required|numeric|unique:users',
             'password' => 'required|min:6',
-            'user_type' => 'required|max:1| in:b, s, bs',
+            'user_type' => 'required',
         ]);
 
         if ($validator->fails()) {
@@ -102,10 +102,23 @@ class AuthController extends Controller
         
         if($user->otp == $request->input('otp'))
         {
-            $otp_verify = "OTP verified";
-            $user->is_otp_verified = 1;
-            $user->save();
-            $status = 2;
+            // $otp_verify = "OTP verified";
+            // $user->is_otp_verified = 1;
+            // $user->save();
+            // $status = 2;
+
+            $credentials = $request->only(['mobile_number', 'password']);
+            $token = Auth::attempt($credentials);
+
+            //return successful response
+            return response()->json([
+                'token' => $token,
+                'token_type' => 'bearer',
+                'expires_in' => Auth::factory()->getTTL() * 60 * 60 * 24 * 7,
+                'status' => 2,
+                'data' => $user, 
+                'message' => 'OTP verified' 
+            ]);
         }
         else
         {

@@ -85,6 +85,8 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     $router->post('products', 'ProductsController@store');
     $router->post('deleteProductImage', 'ProductsController@deleteProductImage');
 
+    $router->get('getProducts/[{user_id}]', 'ProductsController@getProducts');
+
     $router->get('getImages', 'ProductsController@getImages');
 
 
@@ -103,5 +105,34 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     $router->get('search/[{keyword}]', 'ProductsController@search');
 
     $router->post('getSearchResult', 'ProductsController@getSearchResult');
+
+    // orders
+    $router->get('orders', 'OrderController@index');
+    $router->get('getOrders/[{user_id}]', 'OrderController@getOrders');
+    $router->get('getOrdersByStatus', 'OrderController@getOrdersByStatus');
+    // $router->get('products/[{id}]', 'ProductsController@show');
+    // $router->put('products/[{id}]', 'ProductsController@update');
+    $router->post('orders', 'OrderController@store');
+    $router->get('deleteOrder/[{id}]', 'OrderController@deleteOrder');
+    $router->get('getOrdersBySeller', 'OrderController@getOrdersBySeller');
+
+    $router->get('getOrdersByStatusView', 'OrderController@getOrdersByStatusView');
+    $router->get('orderViewed', 'OrderController@orderViewed');
+
+    // message
+    $router->get('messages', 'MessageController@index');
+    $router->post('messages', 'MessageController@store');
+    $router->get('messages/[{id}]', 'MessageController@update');
+    $router->get('getMessageByOrder/[{id}]', 'MessageController@getMessageByOrder');
+
+    //address
+    
+    $router->get('getDefaultAddress', 'AddressController@getDefaultAddress');
+    $router->get('getAddressByOrder/[{id}]', 'AddressController@show');
+    $router->post('updateAddress', 'AddressController@store');
+    
+    // categories
+    
+    $router->get('getCategories', 'CategoriesController@getCategories');
 
 });

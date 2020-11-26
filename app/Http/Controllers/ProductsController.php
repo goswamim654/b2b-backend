@@ -37,7 +37,7 @@ class ProductsController extends Controller
     public function index()
     {
         $productList = [];
-        $products = Product::with('photos')->with('units')->get();
+        $products = Product::where('user_id', '=', Auth::id())->with('photos')->with('units')->get();
 
         if(count($products) > 0)
         {
@@ -45,6 +45,7 @@ class ProductsController extends Controller
             foreach ($products as $key => $product) 
             {
                 $product_details['id'] = $product->id;
+                $product_details['slug'] = str_replace(' ', '-', strtolower($product->name)).'-'.$product->id;
                 $product_details['name'] = $product->name;
                 foreach ($product->units as $key => $unit) {
                     $product_details['unit_id'] = $unit->id;
@@ -105,14 +106,28 @@ class ProductsController extends Controller
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'category' => 'max:255',
-            'sub_category' => 'max:255',
-            'name' => 'required|max:255',
-            'description' => 'max:600',
-            'tax' => 'numeric',
-            "product.*.unit"  => "required|string|min:3",
-        ]);
+        if(isset($request->product['unit']))
+        {
+            $validator = Validator::make($request->all(), [
+                'category' => 'max:255',
+                'sub_category' => 'max:255',
+                'name' => 'required|max:255',
+                'description' => 'max:600',
+                'tax' => 'numeric',
+                "product.*.unit"  => "required|string|min:3",
+            ]);
+        }
+        else
+        {
+            $validator = Validator::make($request->all(), [
+                'category' => 'max:255',
+                'sub_category' => 'max:255',
+                'name' => 'required|max:255',
+                'description' => 'max:600',
+                'tax' => 'numeric',
+            ]);
+        }
+        
         
 
         if ($validator->fails()) {
@@ -131,9 +146,10 @@ class ProductsController extends Controller
             $product->user_id = Auth::id();
             $product->category = $request->category;
             $product->sub_category = $request->sub_category;
-            $product->name = $request->name;
+            $product->name = $request->name; 
             $product->description = $request->description;
             $product->tax = $request->tax;
+            $product->is_item_grouped = $request->is_item_grouped;
             $sound = " ";
             $words = explode(" ", $request->name);
             foreach($words as $word)
@@ -399,6 +415,7 @@ class ProductsController extends Controller
         $message = "Product photo retrieved successfully";
         return ResponseBuilder::result($status, $message, $images);
     }
+
     public function updateProductAvalibility(Request $request)
     {
 
@@ -433,6 +450,7 @@ class ProductsController extends Controller
         }
 
     }
+
     public function updateProductStatus(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -680,10 +698,15 @@ class ProductsController extends Controller
             $search_string .= metaphone($word). " "; 
         }
 
-        $data = User::where('indexing', 'LIKE', '%' . $search_string . '%')->orWhereRaw('LOWER(business_name) like ?', [strtolower('%'.$keyword . '%')])->orWhereRaw('LOWER(business_category) like ?', [strtolower('%'.$keyword . '%')])->orWhereRaw('LOWER(state) like ?', [strtolower('%'.$keyword . '%')])->pluck('business_name');
+        $user = User::find(Auth::id());
+       
+        $data = User::where('indexing', 'LIKE', '%' . $search_string . '%')->where('business_category', '=', $user->business_category)->orWhereRaw('LOWER(business_name) like ?', [strtolower('%'.$keyword . '%')])->orWhereRaw('LOWER(business_category) like ?', [strtolower('%'.$keyword . '%')])->orWhereRaw('LOWER(state) like ?', [strtolower('%'.$keyword . '%')])->pluck('business_name');
         $data = collect($data->toArray())->flatten()->all();
 
-        $products = Product::where('indexing', 'LIKE', '%' . $search_string . '%')->orWhereRaw('LOWER(name) like ?', [strtolower('%'.$keyword . '%')])->pluck('name');
+        
+        $user_id = User::where('business_category', '=', $user->business_category)->pluck('id');
+        
+        $products = Product::where('indexing', 'LIKE', '%' . $search_string . '%')->where('user_id','=', $user_id)->orWhereRaw('LOWER(name) like ?', [strtolower('%'.$keyword . '%')])->pluck('name');
         
         //dd($products);
         foreach ($products as $key => $product) 
@@ -771,5 +794,48 @@ class ProductsController extends Controller
         }
         return ResponseBuilder::result($status, $message, $data);
 
+    }
+
+    public function getProducts($user_id)
+    {
+        $productList = [];
+        $products = Product::where('user_id', $user_id)->with('photos')->with('units')->get();
+
+        if(count($products) > 0)
+        {
+            $product_details = [];
+            foreach ($products as $key => $product) 
+            {
+                $product_details['id'] = $product->id;
+                $product_details['name'] = $product->name;
+                foreach ($product->units as $key => $unit) {
+                    $product_details['unit_id'] = $unit->id;
+                    $product_details['code'] = $unit->code;
+                    $product_details['rate'] = $unit->rate;
+                    $product_details['available'] = $unit->available;
+                    $product_details['status'] = $unit->status;
+                }
+                foreach ($product->photos as $key => $photo) {
+                    $product_details['banner_image'] = $photo->photo_url;
+                    break;
+                }
+                $thumbnail_image = [];
+                foreach ($product->photos as $key => $photo) {
+                    $thumbnail_image[] = url('/uploads/products/thumbnail/'.$photo->photo_name);
+                }
+                $product_details['thumbnail_image'] = $thumbnail_image;
+                
+                $product_details['photos'] = $product->photos;
+                $productList[] = $product_details;
+            }
+            $status = 2;
+            $message = "Products retrived succesfully";
+        }
+        else
+        {
+            $status = 3;
+            $message = "Products not available";
+        }
+        return ResponseBuilder::result($status, $message, $productList);
     }
 }
