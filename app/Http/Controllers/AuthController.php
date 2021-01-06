@@ -23,7 +23,7 @@ class AuthController extends Controller
     {    
         
         $validator = Validator::make($request->all(), [
-            'mobile_number' => 'required|numeric|unique:users',
+            'mobile_number' => 'required|numeric|unique:users|min:10',
             'password' => 'required|min:6',
             'user_type' => 'required',
         ]);
@@ -85,7 +85,7 @@ class AuthController extends Controller
     {
         //validate incoming request 
         $validator = Validator::make($request->all(), [
-            'mobile_number' => 'required|numeric',
+            'mobile_number' => 'required|numeric|min:10',
             'otp' => 'required|numeric|min:4',
         ]);
 
@@ -102,19 +102,18 @@ class AuthController extends Controller
         
         if($user->otp == $request->input('otp'))
         {
-            // $otp_verify = "OTP verified";
-            // $user->is_otp_verified = 1;
-            // $user->save();
-            // $status = 2;
+            $user->is_otp_verified = 1;
+            $user->save();
 
-            $credentials = $request->only(['mobile_number', 'password']);
-            $token = Auth::attempt($credentials);
+            //$credentials = $request->only(['mobile_number', 'password']);
+            //$credentials = $request->only(['mobile_number', 'password']);
+            //$token = Auth::attempt($credentials);
 
             //return successful response
             return response()->json([
-                'token' => $token,
-                'token_type' => 'bearer',
-                'expires_in' => Auth::factory()->getTTL() * 60 * 60 * 24 * 7,
+                //'token' => $token,
+                //'token_type' => 'bearer',
+                //'expires_in' => Auth::factory()->getTTL() * 60 * 60 * 24 * 7,
                 'status' => 2,
                 'data' => $user, 
                 'message' => 'OTP verified' 
@@ -124,7 +123,7 @@ class AuthController extends Controller
         {
             $otp_verify = "OTP incorrect !";
             $status = 4;
-            $token = '';
+            //$token = '';
             $user = '';
         }
 
@@ -142,7 +141,7 @@ class AuthController extends Controller
         
         //validate incoming request 
         $validator = Validator::make($request->all(), [
-            'mobile_number' => 'required|numeric',
+            'mobile_number' => 'required|numeric|min:10',
         ]);
 
         if ($validator->fails()) 
@@ -310,8 +309,8 @@ class AuthController extends Controller
     {
         //validate incoming request 
         $validator = Validator::make($request->all(), [
-            'currentPassword' => 'required',
-            'newPassword' => 'required',
+            'currentPassword' => 'required | min:6',
+            'newPassword' => 'required | confirmed | min:6'
         ]);
 
         if ($validator->fails()) 
@@ -502,6 +501,54 @@ class AuthController extends Controller
         return ResponseBuilder::result($status, $message, $content);
 	}
 
+    public function changeMobileNumber($mobile_number) 
+    {
+        
+        $user = User::find(Auth::id());
+
+        if($user->mobile_number ==  $mobile_number || strpos($user->contact_numbers, $mobile_number) !== false)
+        {
+            $content = '';
+            $status = 3;
+            $message = "No changes in mobile number.";
+            return ResponseBuilder::result($status, $message, $content);
+        }
+        $duplicate_mobile_check = User::where('mobile_number', '=', $mobile_number)->count();
+        $allUsers = User::all();
+        $count = 0;
+        foreach($allUsers as $user_data)
+        {
+            if(strpos($user_data->contact_numbers, $mobile_number) !== false)
+            {
+                $count++;
+            }
+        }
+        //$otp = $this->sendOTP($request->input('mobile_number'));
+        if($duplicate_mobile_check > 0 || $count > 0) 
+        {
+            $content = '';
+            $status = 3;
+            $message = "Mobile number already exists.";
+            return ResponseBuilder::result($status, $message, $content);
+        }
+        $otp = '1111';
+
+        if(! is_numeric($otp))
+        {
+            $status=3;
+            $content="";
+            $message="Failed to sent OTP";
+            return ResponseBuilder::result($status, $message, $content);
+        }
+
+
+        $user->otp = $otp;
+        $user->save();
+        $status=2;
+        $content="";
+        $message="OTP sent successfully";
+        return ResponseBuilder::result($status, $message, $content);
+    }
 
 
 }

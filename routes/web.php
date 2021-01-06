@@ -50,6 +50,15 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     // Matches "/api/Cities
     $router->get('getCities/[{state}]', 'UserController@getCities');
 
+    // Matches "/api/addMobileNumber
+    $router->post('addNewMobileNumber', 'UserController@addNewMobileNumber');
+
+      // Matches "/api/deleteMobileNumber
+      $router->post('deleteMobileNumber', 'UserController@deleteMobileNumber');
+
+    // Matches "/api/ChangeMobileNumber
+    $router->get('changeMobileNumber/[{mobile_number}]', 'AuthController@changeMobileNumber');
+    
 
     // Matches "/api/users/1 
     //get one user by id
@@ -84,8 +93,12 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     $router->put('products/[{id}]', 'ProductsController@update');
     $router->post('products', 'ProductsController@store');
     $router->post('deleteProductImage', 'ProductsController@deleteProductImage');
+    
+    $router->get('deleteProduct/[{id}]', 'ProductsController@deleteProduct');
 
     $router->get('getProducts/[{user_id}]', 'ProductsController@getProducts');
+
+    $router->get('deleteGalleryImage/[{id}]', 'ProductsController@deleteGalleryImage');
 
     $router->get('getImages', 'ProductsController@getImages');
 
@@ -116,14 +129,23 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     $router->get('deleteOrder/[{id}]', 'OrderController@deleteOrder');
     $router->get('getOrdersBySeller', 'OrderController@getOrdersBySeller');
 
+    $router->get('getOrdersByUserType/[{user_type}]', 'OrderController@getOrdersByUserType');
     $router->get('getOrdersByStatusView', 'OrderController@getOrdersByStatusView');
     $router->get('orderViewed', 'OrderController@orderViewed');
 
     // message
     $router->get('messages', 'MessageController@index');
     $router->post('messages', 'MessageController@store');
+    
+    
+    $router->post('itemNotAvailable', 'MessageController@itemNotAvailable');
     $router->get('messages/[{id}]', 'MessageController@update');
     $router->get('getMessageByOrder/[{id}]', 'MessageController@getMessageByOrder');
+    $router->get('getNewMessagesCount/[{user_type}]', 'MessageController@getNewMessagesCount');
+
+    $router->get('getSentMessages/[{user_type}]', 'MessageController@getSentMessages');
+
+    $router->get('getInboxMessages/[{user_type}]', 'MessageController@getInboxMessages');
 
     //address
     

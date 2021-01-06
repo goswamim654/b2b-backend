@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Helper\ResponseBuilder;
 use  App\User;
+use  App\Order;
 
 class ProductsController extends Controller
 {
@@ -53,6 +54,7 @@ class ProductsController extends Controller
                     $product_details['rate'] = $unit->rate;
                     $product_details['available'] = $unit->available;
                     $product_details['status'] = $unit->status;
+                    $product_details['stock'] = $unit->stock;
                 }
                 foreach ($product->photos as $key => $photo) {
                     $product_details['banner_image'] = $photo->photo_url;
@@ -403,7 +405,7 @@ class ProductsController extends Controller
         $images_originals = [];
         $images_photos = [];
         foreach ($productPhotos as $key => $photo) {
-            $images_originals[] = $photo->photo_url;
+            $images_originals[$photo->id] = $photo->photo_url;
             $images_thumbnails[] = url('/uploads/products/thumbnail/'.$photo->photo_name);
             $images_photos[] = url('/uploads/products/photos/'.$photo->photo_name);
         }
@@ -414,6 +416,39 @@ class ProductsController extends Controller
         $status = 2;
         $message = "Product photo retrieved successfully";
         return ResponseBuilder::result($status, $message, $images);
+    }
+
+    public function deleteGalleryImage($id) 
+    {
+        //Return error 404 response if product was not found
+        $productImage = ProductPhoto::find($id);
+        if(!$productImage) 
+        {
+            $content="";
+            $status = 4;
+            $message = "Image not found !";
+        }
+        else
+        {
+            $destinationOriginalPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR. "products". DIRECTORY_SEPARATOR;
+            unlink($destinationOriginalPath.$productImage->photo_name);
+
+            $destinationPhotosPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR. "photos". DIRECTORY_SEPARATOR;
+
+            unlink($destinationPhotosPath.$productImage->photo_name);
+
+            $destinationThumbnailPath = ".." . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "uploads". DIRECTORY_SEPARATOR . "products". DIRECTORY_SEPARATOR. "thumbnail". DIRECTORY_SEPARATOR;
+
+            unlink($destinationThumbnailPath.$productImage->photo_name);
+
+            $productImage->delete();
+
+            $content = "";
+            $status = 2;
+            $message = "Image deleted successfully";
+        }
+        
+        return ResponseBuilder::result($status, $message, $content);
     }
 
     public function updateProductAvalibility(Request $request)
@@ -511,6 +546,7 @@ class ProductsController extends Controller
         PreviewProduct::truncate();
 
         try {
+            
             \DB::beginTransaction();
             //validate request parameters
             $this->validate($request, [
@@ -520,7 +556,6 @@ class ProductsController extends Controller
                 'description' => 'max:600',
                 'tax' => 'max:255',
             ]);
-
             $product = new PreviewProduct();
             $product->category = $request->category;
             $product->sub_category = $request->sub_category;
@@ -528,7 +563,6 @@ class ProductsController extends Controller
             $product->description = $request->description;
             $product->tax = $request->tax;
             $product->save();
-            
             // save images
             foreach ($request->product_images as $key => $image) {
                 $product_photo = new PreviewProductPhoto();
@@ -837,5 +871,35 @@ class ProductsController extends Controller
             $message = "Products not available";
         }
         return ResponseBuilder::result($status, $message, $productList);
+    }
+
+    public function deleteProduct($id) 
+    {
+        $order = Order::where('product_id', '=', $id)->get();
+        if($order)
+        {
+            $status = 4;
+            $message = "Product can't be deleted as Order created for this product.";
+            
+        }
+        else
+        {
+            if(Product::find($id)->delete())
+            {
+                    $status = 2;
+                    $message = "Product deleted successfully.";
+                
+            }
+            else
+            {
+            
+                $status = 4;
+                $message = "Product not found!";
+                
+
+            }
+        }
+        $content = "";
+        return ResponseBuilder::result($status, $message, $content);
     }
 }

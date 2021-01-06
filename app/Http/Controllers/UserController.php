@@ -41,6 +41,29 @@ class UserController extends Controller
      */
     public function profileUpdate(Request $request)
     {
+        $user = User::find(Auth::id());
+
+        if($user->mobile_number !==  $request->mobile_number || strpos($user->contact_numbers, $request->mobile_number) !== false)
+        {
+            
+            $duplicate_mobile_check = User::where('mobile_number', '=', $request->mobile_number)->count();
+            $allUsers = User::all();
+            $count = 0;
+            foreach($allUsers as $user_data)
+            {
+                if(strpos($user_data->contact_numbers, $request->mobile_number) !== false)
+                {
+                    $count++;
+                }
+            }
+            if($duplicate_mobile_check > 0 || $count > 0) 
+            {
+                $content = '';
+                $status = 4;
+                $message = "Mobile number already exists.";
+                return ResponseBuilder::result($status, $message, $content);
+            }
+        }
         // validate incoming request 
 
         $validator = Validator::make($request->all(), [
@@ -50,10 +73,23 @@ class UserController extends Controller
             'state' => 'required',
             'zip' => 'required',
             'country' => 'required',
+            'mobile_number' => 'required|numeric|digits:10',
             'gst' => 'required',
             //'contact_numbers' => 'required',
-            'email' => 'required| email',
+            'email' => 'required|email',
         ]);
+        if($request->contact_numbers)
+        {
+            foreach( $request->contact_numbers as $contact_number)
+            {
+                if(preg_match('/^[0-9]{10}+$/', $contact_number))
+                {
+                    $validator->errors()->add(
+                        'contact_numbers.*', 'Mobile number is not valid!'
+                    );
+                }
+            }
+        }
         if ($validator->fails()) 
         {
             $status = 3;
@@ -71,6 +107,7 @@ class UserController extends Controller
         $user->zip = $request->zip;
         $user->country = $request->country;
         $user->gst = $request->gst;
+        $user->mobile_number = $request->mobile_number;
         if($request->contact_numbers) 
             $user->contact_numbers = implode(',', $request->contact_numbers);
         else
@@ -145,12 +182,15 @@ class UserController extends Controller
     {
         try {
             $user = User::findOrFail($id);
-
-            return response()->json(['user' => $user], 200);
+            $status = 2;
+            $info = "User retrived succesfully";;
+            return ResponseBuilder::result($status, $info, $user);
 
         } catch (\Exception $e) {
-
-            return response()->json(['message' => 'user not found!'], 404);
+            $user = '';
+            $status = 4;
+            $info = "User not found";;
+            return ResponseBuilder::result($status, $info, $user);
         }
 
     }
@@ -167,7 +207,7 @@ class UserController extends Controller
     public function getSellers()
     {
         
-         $data = User::where('id', '!=', auth()->id())->where([['user_type', '!=', 'b'],['status', '=', 1]])->get();
+         $data = User::where([['user_type', '!=', 'b'],['status', '=', 1]])->get();
          if(count($data))
          {
             $status = 2;
@@ -186,7 +226,7 @@ class UserController extends Controller
     public function getBuyers()
     {
         
-         $data = User::where('id', '!=', auth()->id())->where([['user_type', '!=', 's'],['status', '=', 1]])->get();
+         $data = User::where([['user_type', '!=', 's'],['status', '=', 1]])->get();
          if(count($data) > 0)
          {
             $status = 2;
@@ -222,5 +262,99 @@ class UserController extends Controller
         $message = "User type updated  successfully";
         return ResponseBuilder::result($status, $message, $user);
     }
+    public function addNewMobileNumber(Request $request) 
+    {
+        //validate incoming request 
+        $validator = Validator::make($request->all(), [
+            'mobile_number' => 'required|numeric| min:10',
+            'otp' => 'required|numeric|min:4',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 3, 
+                'data' =>  $validator->errors(),
+                'message' => 'Validation failed' 
+            ]);
+        }
+
+        
+        $user = User::find(Auth::id());
+        if($request->mobile_number  == $user->mobile_number || strpos($user->contact_numbers, $request->mobile_number) !== false) 
+        {
+            $status = 3;
+            $info = "Mobile number already exists.";
+            return ResponseBuilder::result($status, $info, $user);
+        }
+        if($user->otp == $request->input('otp'))
+        {
+            $contact_numbers = $user->contact_numbers;
+            if($contact_numbers)
+                $contact_numbers .= ','.$request->mobile_number;
+            else
+                $user->contact_numbers = $request->mobile_number.',';
+            $user->save();
+            return response()->json([
+                'status' => 2,
+                'data' => '', 
+                'message' => 'OTP verified' 
+            ]);
+        }
+        else
+        {
+            $otp_verify = "OTP incorrect !";
+            $status = 4;
+            //$token = '';
+            $user = '';
+        }
+
+        //return successful response
+        return response()->json([
+            'status' => $status,
+            'data' => $user, 
+            'message' => $otp_verify 
+        ]);
+    }
+
+    public function deleteMobileNumber(Request $request)
+    {
+        //validate incoming request 
+        $validator = Validator::make($request->all(), [
+            'mobile_number' => 'required|numeric| min:10',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 3, 
+                'data' =>  $validator->errors(),
+                'message' => 'Validation failed' 
+            ]);
+        }
+
+        
+        $user = User::find(Auth::id());
+
+        $contact_numbers = $user->contact_numbers;
+
+        if($contact_numbers)
+        {
+            $contact_numbers = str_replace($request->mobile_number, '', $contact_numbers);
+            $user->contact_numbers = $contact_numbers;
+            $user->save();
+            $status = 2;
+            $info = "Mobile number deleted successfully";
+            return ResponseBuilder::result($status, $info, $user);
+        }
+        else
+        {
+            $user= '';
+            $status = 3;
+            $info = "No mobile number found";
+            return ResponseBuilder::result($status, $info, $user);
+        }
+        
+
+    }
+    
     
 }

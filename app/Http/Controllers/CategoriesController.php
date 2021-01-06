@@ -23,10 +23,15 @@ class CategoriesController extends Controller
     public function getCategories()
     {
         $user = User::find(Auth::id());
-        $content = Category::where('business_category', '=', strtolower($user->business_category))->get();
+        $categories = [];
+        $contents = Category::where('business_category', '=', strtolower($user->business_category))->get();
+        foreach($contents as $content)
+        {
+            $categories[] = $content->name;
+        }
         $status = 2;
         $message = "Categories retirved successfully";
-        return ResponseBuilder::result($status, $message, $content);
+        return ResponseBuilder::result($status, $message, $categories);
 
     }
 }
