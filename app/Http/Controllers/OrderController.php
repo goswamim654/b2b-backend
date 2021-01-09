@@ -343,4 +343,39 @@ class OrderController extends Controller
         $content = $orders;
         return ResponseBuilder::result($status, $message, $content);
     }
+
+    public function orderFullfilledDetails($order_id)
+    {
+        $orderFullFilledDetails = Order::where('id', '=', $order_id)->first();
+
+        if($orderFullFilledDetails) 
+        {
+            $message = Message::where([['user_id', '=', Auth::id()], ['seller_id', '=', $orderFullFilledDetails->user_id],['order_id', '=', $order_id],['message_type', '=', 'o']])->first(); 
+            if($message)
+            {
+                $orderFullFilledDetails->message = $message->message;
+                $status = 2;
+                $message = "Fulfilled Order retrived successfully";
+                $content = $orderFullFilledDetails;
+                return ResponseBuilder::result($status, $message, $content);
+            }
+            else
+            {
+                $status = 2;
+                $message = "Fulfilled Order retrived successfully";
+                $content = $orderFullFilledDetails;
+                return ResponseBuilder::result($status, $message, $content);
+            }
+        }
+        else
+        {
+            $status = 3;
+            $message = "Order not found!";
+            $content = '';
+            return ResponseBuilder::result($status, $message, $content);
+        }
+        
+
+
+    }
 }

@@ -128,6 +128,9 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     $router->post('orders', 'OrderController@store');
     $router->get('deleteOrder/[{id}]', 'OrderController@deleteOrder');
     $router->get('getOrdersBySeller', 'OrderController@getOrdersBySeller');
+    //orderFullfilledDetails
+    
+    $router->get('orderFullfilledDetails/[{order_id}]', 'OrderController@orderFullfilledDetails');
 
     $router->get('getOrdersByUserType/[{user_type}]', 'OrderController@getOrdersByUserType');
     $router->get('getOrdersByStatusView', 'OrderController@getOrdersByStatusView');
